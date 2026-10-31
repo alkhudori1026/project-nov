@@ -29,6 +29,15 @@ interface Refleksi {
   teks: string;
 }
 
+interface Sesi {
+  id: string;
+  waktuMulai: string;
+  waktuSelesai: string;
+  tagUnik: string[];
+  tugas: Tugas[];
+  refleksi: Refleksi[];
+}
+
 import { useState } from "react";
 
 export default function Home() {
@@ -166,6 +175,33 @@ export default function Home() {
     new Set(daftarTugas.map((tugas) => tugas.tag)),
   );
 
+  const [riwayatSesi, setRiwayatSesi] = useState<Sesi[]>([]);
+
+  const tanganiCatatSesi = () => {
+    // A. Validasi Keamanan: Cegah penyimpanan jika meja kerja kosong
+    if (daftarTugas.length === 0 && daftarRefleksi.length === 0) return;
+
+    // B. Proses Perakitan (Bungkus ke dalam Objek Sesi)
+    const sesiBaru: Sesi = {
+      id: crypto.randomUUID(),
+      waktuMulai: waktuMulai || "00:00",
+      waktuSelesai: waktuSelesai || "00:00",
+      tagUnik: tagSesiAktif, // Menggunakan variabel pintar 'Set' yang kita buat sebelumnya
+      tugas: [...daftarTugas],
+      refleksi: [...daftarRefleksi],
+    };
+
+    // C. Kirim ke Gudang Utama (Riwayat Sesi)
+    // Letakkan sesi baru di urutan paling atas (...sesiBaru, lalu ...riwayatSesi)
+    setRiwayatSesi([...riwayatSesi, sesiBaru]);
+
+    // D. Operasi Pembersihan (Reset Draft)
+    setDaftarTugas([]);
+    setDaftarRefleksi([]);
+    // Opsional: Kamu bisa mereset waktuMulai ke waktu saat ini jika mau,
+    // atau membiarkannya sebagai default.
+  };
+
   return (
     <div className="grid grid-cols-[1fr_16fr] grid-rows-[auto_1fr] h-screen ">
       <Navigation viewAktif={viewAktif} onUbahView={setViewAktif} />
@@ -196,10 +232,7 @@ export default function Home() {
           1. LOG SESI TERSIMPAN (HISTORY) 
           Desain dibuat lebih solid dan "read-only"
       ========================================= */}
-            <section
-              id="log-sesi"
-              className="flex flex-col gap-4 opacity-75 hover:opacity-100 transition-opacity"
-            >
+            <section className="flex flex-col gap-4 opacity-75 hover:opacity-100 transition-opacity">
               {/* Pembatas Waktu & Tag (Statis untuk history) */}
               <div className="flex items-center gap-3">
                 <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full tracking-wide">
@@ -255,7 +288,77 @@ export default function Home() {
                 </div>
               </div>
             </section>
+            {/* =========================================
+    1. LOG SESI TERSIMPAN (HISTORY) 
+========================================= */}
+            <section id="log-sesi" className="flex flex-col gap-6">
+              {riwayatSesi.map((sesi) => (
+                <div
+                  key={sesi.id}
+                  className="flex flex-col gap-4 opacity-80 hover:opacity-100 transition-opacity"
+                >
+                  {/* Pembatas Waktu & Tag dari Data Sesi */}
+                  <div className="flex items-center gap-3">
+                    <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full tracking-wide">
+                      {sesi.waktuMulai} - {sesi.waktuSelesai}
+                    </p>
+                    <div className="flex-1 border-t-2 border-dashed border-slate-200" />
+                    <div className="flex gap-1.5 shrink-0">
+                      {sesi.tagUnik.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2.5 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-md"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
+                  {/* Konten Log Selesai (Render Dinamis) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Kolom Tugas */}
+                    {sesi.tugas.length > 0 && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Tugas Selesai
+                        </h3>
+                        {sesi.tugas.map((t) => (
+                          <div
+                            key={t.id}
+                            className="flex justify-between items-center border-l-2 border-blue-400 pl-3"
+                          >
+                            <p className="font-medium text-sm text-slate-700">
+                              {t.nama}
+                            </p>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {t.durasi}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Kolom Refleksi */}
+                    {sesi.refleksi.length > 0 && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Refleksi
+                        </h3>
+                        {sesi.refleksi.map((r) => (
+                          <p
+                            key={r.id}
+                            className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3"
+                          >
+                            {r.teks}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </section>
             {/* =========================================
           2. AREA INPUT SESI AKTIF (DRAFT)
           Desain menonjol dengan elevasi form
@@ -312,243 +415,251 @@ export default function Home() {
                     />
                   </div>
                 </div>
-
-                {/* Area Log Tugas (Kode map milikmu masuk ke sini) */}
-                <div className="bg-white border border-slate-200/60 rounded-2xl w-full p-4 flex flex-col gap-3 shadow-sm">
-                  <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
-                    Tugas apa yang diselesaikan?
-                  </h2>
-                  {daftarTugas.map((tugas) => (
-                    <div
-                      key={tugas.id}
-                      // PERHATIKAN: overflow-visible aktif saat diedit agar laci popover tidak terpotong!
-                      className={`group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-blue-600 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Area Log Tugas (Kode map milikmu masuk ke sini) */}
+                  <div className="bg-white border border-slate-200/60 rounded-2xl w-full p-4 flex flex-col gap-3 shadow-sm">
+                    <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
+                      Tugas apa yang diselesaikan?
+                    </h2>
+                    {daftarTugas.map((tugas) => (
+                      <div
+                        key={tugas.id}
+                        // PERHATIKAN: overflow-visible aktif saat diedit agar laci popover tidak terpotong!
+                        className={`group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-blue-600 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out
       ${idEditTugas === tugas.id ? "overflow-visible z-20" : "overflow-hidden"}
     `}
-                    >
-                      {idEditTugas === tugas.id ? (
-                        // ==========================
-                        // 🛠️ MODE EDIT MENYELURUH
-                        // ==========================
-                        <div className="flex items-center w-full gap-2">
-                          {/* Tombol Aksi Kiri */}
-                          <div className="flex shrink-0 gap-1">
-                            <IconButton
-                              icon={Check}
-                              onClick={() => tanganiSimpanEditTugas(tugas.id)}
-                              className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
-                            />
-                            <IconButton
-                              icon={X}
-                              onClick={() => setIdEditTugas(null)}
-                              className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
-                            />
-                          </div>
+                      >
+                        {idEditTugas === tugas.id ? (
+                          // ==========================
+                          // 🛠️ MODE EDIT MENYELURUH
+                          // ==========================
+                          <div className="flex items-center w-full gap-2">
+                            {/* Tombol Aksi Kiri */}
+                            <div className="flex shrink-0 gap-1">
+                              <IconButton
+                                icon={Check}
+                                onClick={() => tanganiSimpanEditTugas(tugas.id)}
+                                className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
+                              />
+                              <IconButton
+                                icon={X}
+                                onClick={() => setIdEditTugas(null)}
+                                className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
+                              />
+                            </div>
 
-                          {/* Input Nama Tugas */}
-                          <input
-                            type="text"
-                            className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors min-w-0"
-                            value={teksEditTugas}
-                            onChange={(e) => setTeksEditTugas(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter")
-                                tanganiSimpanEditTugas(tugas.id);
-                              if (e.key === "Escape") setIdEditTugas(null);
-                            }}
-                            autoFocus
-                          />
-
-                          {/* Mesin Picker Tag & Durasi (Di-render ulang untuk baris ini) */}
-                          <div className="flex gap-1 shrink-0">
-                            <DurationPicker
-                              onPilihDurasi={setDurasiEditTugas}
-                              // Opsional: jika DurationPicker milikmu belum memiliki prop ini,
-                              // abaikan atau tambahkan agar ia bisa menampilkan nilai saat ini
-                              durasiTerpilih={durasiEditTugas}
-                            />
-                            <TagPicker
-                              daftarTag={daftarTagGlobal}
-                              tagTerpilih={tagEditTugas}
-                              onPilihTag={setTagEditTugas}
-                              onBuatTagBaru={(tag) => {
-                                setDaftarTagGlobal([...daftarTagGlobal, tag]);
-                                setTagEditTugas(tag);
+                            {/* Input Nama Tugas */}
+                            <input
+                              type="text"
+                              className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors min-w-0"
+                              value={teksEditTugas}
+                              onChange={(e) => setTeksEditTugas(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  tanganiSimpanEditTugas(tugas.id);
+                                if (e.key === "Escape") setIdEditTugas(null);
                               }}
+                              autoFocus
                             />
+
+                            {/* Mesin Picker Tag & Durasi (Di-render ulang untuk baris ini) */}
+                            <div className="flex gap-1 shrink-0">
+                              <DurationPicker
+                                onPilihDurasi={setDurasiEditTugas}
+                                // Opsional: jika DurationPicker milikmu belum memiliki prop ini,
+                                // abaikan atau tambahkan agar ia bisa menampilkan nilai saat ini
+                                durasiTerpilih={durasiEditTugas}
+                              />
+                              <TagPicker
+                                daftarTag={daftarTagGlobal}
+                                tagTerpilih={tagEditTugas}
+                                onPilihTag={setTagEditTugas}
+                                onBuatTagBaru={(tag) => {
+                                  setDaftarTagGlobal([...daftarTagGlobal, tag]);
+                                  setTagEditTugas(tag);
+                                }}
+                              />
+                            </div>
                           </div>
+                        ) : (
+                          // ==========================
+                          // 📖 MODE BACA (TIDAK BERUBAH)
+                          // ==========================
+                          <>
+                            <div className="flex items-center flex-1 min-w-0">
+                              <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0 gap-1 mr-2">
+                                {/* Tombol Pemicu Mode Edit */}
+                                <IconButton
+                                  icon={Pencil}
+                                  onClick={() => {
+                                    setIdEditTugas(tugas.id);
+                                    setTeksEditTugas(tugas.nama);
+                                    setTagEditTugas(tugas.tag); // Muat tag yang ada
+                                    setDurasiEditTugas(tugas.durasi); // Muat durasi yang ada
+                                  }}
+                                  className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100 shrink-0"
+                                />
+                                <IconButton
+                                  icon={Trash2}
+                                  onClick={() => tanganiHapusTugas(tugas.id)}
+                                  className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100 shrink-0"
+                                />
+                              </div>
+                              <h3 className="text-left font-medium text-slate-700 truncate">
+                                {tugas.nama}
+                              </h3>
+                            </div>
+
+                            <div className="flex gap-2 shrink-0 ml-4">
+                              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md px-2 py-1">
+                                {tugas.tag}
+                              </span>
+                              <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-1">
+                                {tugas.durasi}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between w-full gap-2">
+                      <input
+                        type="text"
+                        placeholder=" tulis judul tugas ..."
+                        className="outline-none h-8"
+                        value={inputNamaTugas} // Layar membaca dari state
+                        onChange={(e) => setInputNamaTugas(e.target.value)}
+                      ></input>
+                      <div className="flex gap-2 w-full justify-between">
+                        <div className="flex gap-2">
+                          <DurationPicker
+                            onPilihDurasi={setInputDurasi}
+                            durasiTerpilih={inputDurasi}
+                          />
+                          <TagPicker
+                            daftarTag={daftarTagGlobal}
+                            tagTerpilih={inputTag} // Sambungkan ke ban berjalan inputTag, bukan tagAktif
+                            onPilihTag={setInputTag}
+                            onBuatTagBaru={(tag) => {
+                              setDaftarTagGlobal([...daftarTagGlobal, tag]);
+                              setInputTag(tag); // Langsung masukkan tag baru ke ban berjalan
+                            }}
+                          />
                         </div>
-                      ) : (
-                        // ==========================
-                        // 📖 MODE BACA (TIDAK BERUBAH)
-                        // ==========================
-                        <>
-                          <div className="flex items-center flex-1 min-w-0">
+
+                        <IconButton
+                          icon={ListPlus}
+                          onClick={tanganiTambahTugas}
+                          // Karena kita butuh ListPlus lebih mencolok dari tombol lain,
+                          // kita timpa warnanya dengan palu godam (!)
+                          className="!bg-blue-600 !text-white hover:!bg-blue-700 size-[clamp(2rem,3vw,2.5rem)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Area Log Refleksi (Kode map milikmu masuk ke sini) */}
+                  <div className="bg-white border border-slate-200/60 rounded-2xl w-full p-4 flex flex-col gap-3 shadow-sm">
+                    <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
+                      Bagaimana kondisi energi?
+                    </h2>
+                    {daftarRefleksi.map((ref) => (
+                      <div
+                        key={ref.id}
+                        className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-slate-400 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out"
+                      >
+                        {idEditRefleksi === ref.id ? (
+                          // ==========================
+                          // 🛠️ MODE EDIT
+                          // ==========================
+                          <div className="flex items-center w-full gap-2 z-10">
+                            <input
+                              type="text"
+                              className="w-full text-sm outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors"
+                              value={teksEditRefleksi}
+                              onChange={(e) =>
+                                setTeksEditRefleksi(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  tanganiSimpanEditRefleksi(ref.id);
+                                if (e.key === "Escape") setIdEditRefleksi(null);
+                              }}
+                              autoFocus // Kursor langsung berkedip di sini saat mode edit terbuka
+                            />
+                            <div className="flex shrink-0 gap-1">
+                              <IconButton
+                                icon={Check}
+                                onClick={() =>
+                                  tanganiSimpanEditRefleksi(ref.id)
+                                }
+                                className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
+                              />
+                              <IconButton
+                                icon={X}
+                                onClick={() => setIdEditRefleksi(null)}
+                                className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          // ==========================
+                          // 📖 MODE BACA
+                          // ==========================
+                          <>
+                            <p className="text-sm text-slate-700">{ref.teks}</p>
+
+                            {/* Kontainer Tombol Aksi (Sejajar di Kanan, Muncul saat Hover) */}
                             <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0 gap-1 mr-2">
-                              {/* Tombol Pemicu Mode Edit */}
+                              {/* Tombol Edit */}
                               <IconButton
                                 icon={Pencil}
                                 onClick={() => {
-                                  setIdEditTugas(tugas.id);
-                                  setTeksEditTugas(tugas.nama);
-                                  setTagEditTugas(tugas.tag); // Muat tag yang ada
-                                  setDurasiEditTugas(tugas.durasi); // Muat durasi yang ada
+                                  setIdEditRefleksi(ref.id);
+                                  setTeksEditRefleksi(ref.teks);
                                 }}
-                                className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100 shrink-0"
+                                className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
                               />
+
+                              {/* Tombol Hapus */}
                               <IconButton
                                 icon={Trash2}
-                                onClick={() => tanganiHapusTugas(tugas.id)}
-                                className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100 shrink-0"
+                                onClick={() => tanganiHapusRefleksi(ref.id)}
+                                className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100"
                               />
                             </div>
-                            <h3 className="text-left font-medium text-slate-700 truncate">
-                              {tugas.nama}
-                            </h3>
-                          </div>
-
-                          <div className="flex gap-2 shrink-0 ml-4">
-                            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md px-2 py-1">
-                              {tugas.tag}
-                            </span>
-                            <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-1">
-                              {tugas.durasi}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between w-full gap-2">
-                    <input
-                      type="text"
-                      placeholder=" tulis judul tugas ..."
-                      className="outline-none h-8"
-                      value={inputNamaTugas} // Layar membaca dari state
-                      onChange={(e) => setInputNamaTugas(e.target.value)}
-                    ></input>
-                    <div className="flex gap-2 w-full justify-between">
-                      <div className="flex gap-2">
-                        <DurationPicker
-                          onPilihDurasi={setInputDurasi}
-                          durasiTerpilih={inputDurasi}
-                        />
-                        <TagPicker
-                          daftarTag={daftarTagGlobal}
-                          tagTerpilih={inputTag} // Sambungkan ke ban berjalan inputTag, bukan tagAktif
-                          onPilihTag={setInputTag}
-                          onBuatTagBaru={(tag) => {
-                            setDaftarTagGlobal([...daftarTagGlobal, tag]);
-                            setInputTag(tag); // Langsung masukkan tag baru ke ban berjalan
-                          }}
-                        />
+                          </>
+                        )}
                       </div>
-
+                    ))}
+                    <div className="flex justify-between items-center w-full gap-2 mt-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                      <input
+                        type="text"
+                        placeholder="Ketik apa yang dirasakan..."
+                        className="w-full py-1 px-3 outline-none bg-transparent text-sm text-slate-700"
+                        value={inputRefleksi}
+                        onChange={(e) => setInputRefleksi(e.target.value)}
+                        onKeyDown={(e) => {
+                          // Trik UX: Eksekusi fungsi jika tombol yang ditekan adalah Enter
+                          if (e.key === "Enter") tanganiTambahRefleksi();
+                        }}
+                      />
                       <IconButton
-                        icon={ListPlus}
-                        onClick={tanganiTambahTugas}
-                        // Karena kita butuh ListPlus lebih mencolok dari tombol lain,
-                        // kita timpa warnanya dengan palu godam (!)
-                        className="!bg-blue-600 !text-white hover:!bg-blue-700 size-[clamp(2rem,3vw,2.5rem)]"
+                        icon={PenLine}
+                        onClick={tanganiTambahRefleksi}
+                        className="!bg-slate-100 hover:!bg-slate-200 !text-slate-600 shrink-0"
                       />
                     </div>
                   </div>
                 </div>
-
-                {/* Area Log Refleksi (Kode map milikmu masuk ke sini) */}
-                <div className="bg-white border border-slate-200/60 rounded-2xl w-full p-4 flex flex-col gap-3 shadow-sm">
-                  <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
-                    Bagaimana kondisi energi?
-                  </h2>
-                  {daftarRefleksi.map((ref) => (
-                    <div
-                      key={ref.id}
-                      className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-slate-400 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out"
-                    >
-                      {idEditRefleksi === ref.id ? (
-                        // ==========================
-                        // 🛠️ MODE EDIT
-                        // ==========================
-                        <div className="flex items-center w-full gap-2 z-10">
-                          <input
-                            type="text"
-                            className="w-full text-sm outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors"
-                            value={teksEditRefleksi}
-                            onChange={(e) =>
-                              setTeksEditRefleksi(e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter")
-                                tanganiSimpanEditRefleksi(ref.id);
-                              if (e.key === "Escape") setIdEditRefleksi(null);
-                            }}
-                            autoFocus // Kursor langsung berkedip di sini saat mode edit terbuka
-                          />
-                          <div className="flex shrink-0 gap-1">
-                            <IconButton
-                              icon={Check}
-                              onClick={() => tanganiSimpanEditRefleksi(ref.id)}
-                              className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
-                            />
-                            <IconButton
-                              icon={X}
-                              onClick={() => setIdEditRefleksi(null)}
-                              className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        // ==========================
-                        // 📖 MODE BACA
-                        // ==========================
-                        <>
-                          <p className="text-sm text-slate-700">{ref.teks}</p>
-
-                          {/* Kontainer Tombol Aksi (Sejajar di Kanan, Muncul saat Hover) */}
-                          <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0 gap-1 mr-2">
-                            {/* Tombol Edit */}
-                            <IconButton
-                              icon={Pencil}
-                              onClick={() => {
-                                setIdEditRefleksi(ref.id);
-                                setTeksEditRefleksi(ref.teks);
-                              }}
-                              className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
-                            />
-
-                            {/* Tombol Hapus */}
-                            <IconButton
-                              icon={Trash2}
-                              onClick={() => tanganiHapusRefleksi(ref.id)}
-                              className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center w-full gap-2 mt-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                    <input
-                      type="text"
-                      placeholder="Ketik apa yang dirasakan..."
-                      className="w-full py-1 px-3 outline-none bg-transparent text-sm text-slate-700"
-                      value={inputRefleksi}
-                      onChange={(e) => setInputRefleksi(e.target.value)}
-                      onKeyDown={(e) => {
-                        // Trik UX: Eksekusi fungsi jika tombol yang ditekan adalah Enter
-                        if (e.key === "Enter") tanganiTambahRefleksi();
-                      }}
-                    />
-                    <IconButton
-                      icon={PenLine}
-                      onClick={tanganiTambahRefleksi}
-                      className="!bg-slate-100 hover:!bg-slate-200 !text-slate-600 shrink-0"
-                    />
-                  </div>
-                </div>
-
                 {/* Tombol Eksekusi Final */}
-                <button className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
+                <button
+                  onClick={tanganiCatatSesi}
+                  disabled={
+                    daftarTugas.length === 0 && daftarRefleksi.length === 0
+                  }
+                  className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold rounded-2xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                >
                   <PencilSparkles className="size-5" />
                   <span>Catat Sesi ke Jurnal</span>
                 </button>
