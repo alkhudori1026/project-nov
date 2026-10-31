@@ -1,8 +1,9 @@
+"use client";
+import IconButton from "@/components/IconButon";
+import Navigation from "@/components/Navigasi";
+import TopBar from "@/components/TopBar";
+import DurationPicker from "@/components/DurationPicker";
 import {
-  LayoutPanelLeft,
-  CalendarRange,
-  FolderGit2,
-  NotepadText,
   CircleStar,
   ListPlus,
   Tag,
@@ -11,56 +12,31 @@ import {
   Timer,
 } from "lucide-react";
 
+import { useState } from "react";
+
 export default function Home() {
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [viewAktif, setViewAktif] = useState("Home");
+  const [durasiTugas, setDurasiTugas] = useState("");
   return (
     <div className="grid grid-cols-[1fr_16fr] grid-rows-[auto_1fr] h-screen ">
-      {/*-----[ Navigasi ]-----*/}
-      <div className="bg-slate-50 row-span-2 flex flex-col gap-8 py-6 px-[clamp(0.5rem,2vw,1.5rem)]">
-        <div className="flex flex-col items-center">
-          <LayoutPanelLeft className="size-[clamp(1.75rem,3vw,3.75rem)]" />
-          <p className="mt-2">Home</p>
-        </div>
-        {/* 
-        Ukuran minimum: 1.25rem (20px)
-        Ukuran fleksibel: 3vw (3% dari lebar layar)
-        Ukuran maksimum: 2.5rem (40px)
-      */}
-        <div className="flex flex-col items-center">
-          <CalendarRange className="size-[clamp(1.75rem,3vw,3.75rem)]" />
-          <p className="mt-2">Habits</p>
-        </div>
-        <div className="flex flex-col items-center">
-          <FolderGit2 className="size-[clamp(1.75rem,3vw,3.75rem)]" />
-          <p className="mt-2">Projects</p>
-        </div>
-        <div className="flex flex-col items-center">
-          <NotepadText className="size-[clamp(1.75rem,3vw,3.75rem)]" />
-          <p className="mt-2">Jurnals</p>
-        </div>
-      </div>
-      {/*-----[ Top Bar ]-----*/}
-      <div className="bg-slate-100 px-8 py-[clamp(0.5rem,2vw,1rem)] flex justify-between items-center">
-        <p className="font-bold text-[clamp(1.5rem,2vw,2.5rem)]">
-          Productivity Go
-        </p>
-        <div className="flex gap-6 items-center">
-          <span className="text-[clamp(1rem,2vw,1.25rem)] bg-blue-200 px-3 rounded-md">
-            08.00
-          </span>
-          <p className="text-[clamp(1.5rem,2vw,2.5rem)] font-medium">
-            Jurnal Harian
-          </p>
-        </div>
-      </div>
+      <Navigation viewAktif={viewAktif} onUbahView={setViewAktif} />
+      <TopBar />
       {/*-----[ Main Page ]-----*/}
-      <div className="bg-slate-100 px-6 flex-1 py-2 overflow-y-auto no-scrollbar">
-        <header className="bg-white rounded-t-3xl flex justify-between items-center p-4">
+      <div className="bg-slate-100 px-6 flex-1 pb-2 overflow-y-auto no-scrollbar">
+        <header className="bg-white rounded-t-3xl flex justify-between items-center p-4 shadow-md max-w-250 min-w-[90%] fixed z-50">
           <h1 className="font-semibold text-xl">Sabtu, 31 Oktober 2026</h1>
-          <button>
-            <CircleStar />
-          </button>
+          <IconButton
+            icon={CircleStar}
+            className={`size-[clamp(2.5rem,4vw,3.5rem)] ${
+              isFavorite
+                ? "!text-amber-500 !bg-amber-50 hover:!bg-amber-100 hover:!text-amber-600"
+                : ""
+            }`}
+            onClick={() => setIsFavorite(!isFavorite)}
+          />
         </header>
-        <div className="bg-white rounded-b-3xl max-w-250 mx-auto min-h-max p-4 pt-0 ">
+        <div className="bg-white rounded-b-3xl max-w-250 mx-auto min-h-max p-4 pt-0 mt-16 ">
           <section id="log-sesi">
             <div className="flex items-center gap-2">
               {/* Teks Jam: Ditahan agar tidak pernah patah baris atau menyusut */}
@@ -122,11 +98,11 @@ export default function Home() {
               </div>
             </div>
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="bg-slate-100 rounded-2xl w-full min-h-15 p-3 flex flex-col items-center justify-center">
+              <div className="bg-slate-100 rounded-2xl w-full min-h-15 p-3 gap-3 flex flex-col items-center justify-center">
                 <h2 className="border-b border-slate-400 w-full text-center font-semibold text-lg pb-2">
                   Tugas apa yang diselesaikan?
                 </h2>
-                <div className="flex justify-between w-full mt-3 border-l border-blue-400 rounded-b-sm px-2">
+                <div className="flex justify-between w-full border-l border-blue-400 rounded-b-sm px-2">
                   <h3 className="font-semibold">Membaca Buku</h3>
                   <div className="flex gap-2">
                     <span className="text-gray-500 bg-red-100 rounded-md px-3">
@@ -137,21 +113,26 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between w-full gap-2">
+                <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between w-full gap-2">
                   <input
                     type="text"
-                    placeholder="tugas-tugas"
-                    className="w-full py-2"
+                    placeholder=" tulis judul tugas ..."
+                    className="outline-none"
                   ></input>
-                  <button>
-                    <Timer />
-                  </button>
-                  <button>
-                    <Tag />
-                  </button>
-                  <button>
-                    <ListPlus />
-                  </button>
+                  <div className="flex gap-2 w-full justify-between">
+                    <div>
+                      <DurationPicker
+                        onPilihDurasi={(hasil) => setDurasiTugas(hasil)}
+                      />
+                      <button className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                        <Tag className="size-[clamp(1rem,3vw,1.75rem)]" />
+                      </button>
+                    </div>
+
+                    <button className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                      <ListPlus className="size-[clamp(1rem,3vw,1.75rem)]" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="bg-slate-100 rounded-2xl w-full min-h-15 p-3 flex flex-col gap-3 items-center justify-center">
@@ -165,9 +146,11 @@ export default function Home() {
                   <input
                     type="text"
                     placeholder="Apa yang sedang dirasakan?"
-                    className="w-full"
+                    className="w-full outline-none"
                   ></input>
-                  <PenLine />
+                  <button className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                    <PenLine className="size-[clamp(1rem,3vw,1.75rem)]" />
+                  </button>
                 </div>
               </div>
             </div>
