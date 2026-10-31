@@ -68,7 +68,7 @@ export default function TagPicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors font-medium text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors font-medium text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
           tagTerpilih
             ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" // Mode: Sudah ada tag terpilih
             : "bg-slate-100 text-slate-600 hover:bg-slate-200" // Mode: Kosong
@@ -80,7 +80,7 @@ export default function TagPicker({
 
       {/* LACI OPERASIONAL (COMBOBOX) */}
       {isOpen && (
-        <div className="absolute left-0 bottom-full mb-2 z-50 w-56 origin-bottom-left bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden flex flex-col">
+        <div className="absolute left-0 left-0 mb-2 z-50 w-56 origin-top-right bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden flex flex-col">
           {/* Area Pencarian */}
           <div className="flex items-center gap-2 px-3 border-b border-slate-100 bg-slate-50">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />

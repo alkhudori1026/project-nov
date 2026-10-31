@@ -5,9 +5,13 @@ import { Timer } from "lucide-react";
 
 interface DurationPickerProps {
   onPilihDurasi: (durasiTeks: string) => void;
+  durasiTerpilih?: string;
 }
 
-export default function DurationPicker({ onPilihDurasi }: DurationPickerProps) {
+export default function DurationPicker({
+  onPilihDurasi,
+  durasiTerpilih = "",
+}: DurationPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [jam, setJam] = useState(0);
   const [menit, setMenit] = useState(0);
@@ -28,6 +32,14 @@ export default function DurationPicker({ onPilihDurasi }: DurationPickerProps) {
     if (isOpen) document.addEventListener("mousedown", tanganiKlikLuar);
     return () => document.removeEventListener("mousedown", tanganiKlikLuar);
   }, [isOpen]);
+
+  // 2. Sensor Pembersih: Jika page.tsx mengirim teks kosong, reset jam & menit ke 0
+  useEffect(() => {
+    if (durasiTerpilih === "") {
+      setJam(0);
+      setMenit(0);
+    }
+  }, [durasiTerpilih]);
 
   // Fungsi mesin pengonversi format
   const konfirmasiDurasi = () => {
@@ -50,7 +62,7 @@ export default function DurationPicker({ onPilihDurasi }: DurationPickerProps) {
         className="flex items-center gap-2 p-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors font-medium text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
         <Timer className="w-5 h-5 text-slate-500" />
-        <span>{jam > 0 || menit > 0 ? `${jam} j ${menit} m` : "Durasi"}</span>
+        <span>{durasiTerpilih ? durasiTerpilih : "Durasi"}</span>
       </button>
 
       {/* Mesin Popover (Laci Operasional) */}
@@ -94,7 +106,7 @@ export default function DurationPicker({ onPilihDurasi }: DurationPickerProps) {
                 Menit
               </span>
               <div className="h-32 w-full overflow-y-auto no-scrollbar flex flex-col items-center gap-1 border-y border-slate-100 py-2 scroll-smooth">
-                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(
+                {[0, 10, 20, 30, 40, 50].map(
                   (
                     m, // Kelipatan 5 menit
                   ) => (
