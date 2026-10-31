@@ -11,6 +11,9 @@ import {
   PencilSparkles,
   PenLine,
   Trash2,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 
 // 1. Kontrak Tipe Data: Bentuk pasti dari satu objek tugas
@@ -111,6 +114,46 @@ export default function Home() {
 
   const tanganiHapusRefleksi = (idYangDihapus: string) => {
     setDaftarRefleksi(daftarRefleksi.filter((r) => r.id !== idYangDihapus));
+  };
+  // ... di dalam Home()
+  const [idEditRefleksi, setIdEditRefleksi] = useState<string | null>(null);
+  const [teksEditRefleksi, setTeksEditRefleksi] = useState("");
+
+  const tanganiSimpanEditRefleksi = (id: string) => {
+    if (!teksEditRefleksi.trim()) return; // Jangan simpan jika draf kosong
+
+    // Saring dan timpa teks pada ID yang cocok
+    const daftarBaru = daftarRefleksi.map((ref) =>
+      ref.id === id ? { ...ref, teks: teksEditRefleksi } : ref,
+    );
+
+    setDaftarRefleksi(daftarBaru);
+    setIdEditRefleksi(null); // Matikan mode edit
+  };
+
+  // State untuk menyimpan ID tugas yang sedang diedit
+  const [idEditTugas, setIdEditTugas] = useState<string | null>(null);
+  // State untuk menyimpan teks sementara saat mengetik
+  const [teksEditTugas, setTeksEditTugas] = useState("");
+  const [tagEditTugas, setTagEditTugas] = useState(""); // Memori baru
+  const [durasiEditTugas, setDurasiEditTugas] = useState(""); // Memori baru
+
+  const tanganiSimpanEditTugas = (id: string) => {
+    if (!teksEditTugas.trim()) return;
+
+    const daftarBaru = daftarTugas.map((tugas) =>
+      tugas.id === id
+        ? {
+            ...tugas,
+            nama: teksEditTugas,
+            tag: tagEditTugas,
+            durasi: durasiEditTugas,
+          }
+        : tugas,
+    );
+
+    setDaftarTugas(daftarBaru);
+    setIdEditTugas(null); // Tutup mode edit
   };
 
   return (
@@ -213,31 +256,102 @@ export default function Home() {
                   {daftarTugas.map((tugas) => (
                     <div
                       key={tugas.id}
-                      className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden
-                                before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-blue-600 
-                                hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out"
+                      // PERHATIKAN: overflow-visible aktif saat diedit agar laci popover tidak terpotong!
+                      className={`group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-blue-600 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out
+      ${idEditTugas === tugas.id ? "overflow-visible z-20" : "overflow-hidden"}
+    `}
                     >
-                      <div className="flex items-center">
-                        <div className="w-0 opacity-0 overflow-hidden group-hover:w-9 group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0">
-                          <IconButton
-                            icon={Trash2}
-                            onClick={() => tanganiHapusTugas(tugas.id)}
-                            // 3. Tombol tetap berukuran solid (w-8 h-8) di dalam pintunya
-                            className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100 shrink-0"
+                      {idEditTugas === tugas.id ? (
+                        // ==========================
+                        // 🛠️ MODE EDIT MENYELURUH
+                        // ==========================
+                        <div className="flex items-center w-full gap-2">
+                          {/* Tombol Aksi Kiri */}
+                          <div className="flex shrink-0 gap-1">
+                            <IconButton
+                              icon={Check}
+                              onClick={() => tanganiSimpanEditTugas(tugas.id)}
+                              className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
+                            />
+                            <IconButton
+                              icon={X}
+                              onClick={() => setIdEditTugas(null)}
+                              className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
+                            />
+                          </div>
+
+                          {/* Input Nama Tugas */}
+                          <input
+                            type="text"
+                            className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors min-w-0"
+                            value={teksEditTugas}
+                            onChange={(e) => setTeksEditTugas(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                tanganiSimpanEditTugas(tugas.id);
+                              if (e.key === "Escape") setIdEditTugas(null);
+                            }}
+                            autoFocus
                           />
+
+                          {/* Mesin Picker Tag & Durasi (Di-render ulang untuk baris ini) */}
+                          <div className="flex gap-1 shrink-0">
+                            <DurationPicker
+                              onPilihDurasi={setDurasiEditTugas}
+                              // Opsional: jika DurationPicker milikmu belum memiliki prop ini,
+                              // abaikan atau tambahkan agar ia bisa menampilkan nilai saat ini
+                              durasiTerpilih={durasiEditTugas}
+                            />
+                            <TagPicker
+                              daftarTag={daftarTagGlobal}
+                              tagTerpilih={tagEditTugas}
+                              onPilihTag={setTagEditTugas}
+                              onBuatTagBaru={(tag) => {
+                                setDaftarTagGlobal([...daftarTagGlobal, tag]);
+                                setTagEditTugas(tag);
+                              }}
+                            />
+                          </div>
                         </div>
-                        <h3 className="text-left font-medium text-slate-700">
-                          {tugas.nama}
-                        </h3>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md px-2 py-1">
-                          {tugas.tag}
-                        </span>
-                        <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-1">
-                          {tugas.durasi}
-                        </span>
-                      </div>
+                      ) : (
+                        // ==========================
+                        // 📖 MODE BACA (TIDAK BERUBAH)
+                        // ==========================
+                        <>
+                          <div className="flex items-center flex-1 min-w-0">
+                            <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0 gap-1 mr-2">
+                              {/* Tombol Pemicu Mode Edit */}
+                              <IconButton
+                                icon={Pencil}
+                                onClick={() => {
+                                  setIdEditTugas(tugas.id);
+                                  setTeksEditTugas(tugas.nama);
+                                  setTagEditTugas(tugas.tag); // Muat tag yang ada
+                                  setDurasiEditTugas(tugas.durasi); // Muat durasi yang ada
+                                }}
+                                className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100 shrink-0"
+                              />
+                              <IconButton
+                                icon={Trash2}
+                                onClick={() => tanganiHapusTugas(tugas.id)}
+                                className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100 shrink-0"
+                              />
+                            </div>
+                            <h3 className="text-left font-medium text-slate-700 truncate">
+                              {tugas.nama}
+                            </h3>
+                          </div>
+
+                          <div className="flex gap-2 shrink-0 ml-4">
+                            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md px-2 py-1">
+                              {tugas.tag}
+                            </span>
+                            <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-1">
+                              {tugas.durasi}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                   <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between w-full gap-2">
@@ -281,20 +395,75 @@ export default function Home() {
                   </h2>
 
                   {/* --- DAFTAR REFLEKSI YANG SUDAH JADI --- */}
+                  {/* --- DAFTAR REFLEKSI YANG SUDAH JADI --- */}
                   <div className="flex flex-col gap-2 w-full">
                     {daftarRefleksi.map((ref) => (
                       <div
                         key={ref.id}
                         className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-slate-400 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out"
                       >
-                        <p className="text-sm text-slate-700">{ref.teks}</p>
+                        {idEditRefleksi === ref.id ? (
+                          // ==========================
+                          // 🛠️ MODE EDIT
+                          // ==========================
+                          <div className="flex items-center w-full gap-2 z-10">
+                            <input
+                              type="text"
+                              className="w-full text-sm outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors"
+                              value={teksEditRefleksi}
+                              onChange={(e) =>
+                                setTeksEditRefleksi(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  tanganiSimpanEditRefleksi(ref.id);
+                                if (e.key === "Escape") setIdEditRefleksi(null);
+                              }}
+                              autoFocus // Kursor langsung berkedip di sini saat mode edit terbuka
+                            />
+                            <div className="flex shrink-0 gap-1">
+                              <IconButton
+                                icon={Check}
+                                onClick={() =>
+                                  tanganiSimpanEditRefleksi(ref.id)
+                                }
+                                className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
+                              />
+                              <IconButton
+                                icon={X}
+                                onClick={() => setIdEditRefleksi(null)}
+                                className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          // ==========================
+                          // 📖 MODE BACA
+                          // ==========================
+                          <>
+                            <p className="text-sm text-slate-700">{ref.teks}</p>
 
-                        {/* Tombol Hapus Refleksi */}
-                        <IconButton
-                          icon={Trash2}
-                          onClick={() => tanganiHapusRefleksi(ref.id)}
-                          className="w-8 h-8 opacity-0 group-hover:opacity-100 !text-red-400 hover:!text-red-600 hover:!bg-red-50 transition-all focus:opacity-100 shrink-0"
-                        />
+                            {/* Kontainer Tombol Aksi (Sejajar di Kanan, Muncul saat Hover) */}
+                            <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 ease-out flex shrink-0 gap-1 mr-2">
+                              {/* Tombol Edit */}
+                              <IconButton
+                                icon={Pencil}
+                                onClick={() => {
+                                  setIdEditRefleksi(ref.id);
+                                  setTeksEditRefleksi(ref.teks);
+                                }}
+                                className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
+                              />
+
+                              {/* Tombol Hapus */}
+                              <IconButton
+                                icon={Trash2}
+                                onClick={() => tanganiHapusRefleksi(ref.id)}
+                                className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
