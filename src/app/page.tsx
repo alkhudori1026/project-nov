@@ -3,6 +3,7 @@ import IconButton from "@/components/IconButon";
 import Navigation from "@/components/Navigasi";
 import TopBar from "@/components/TopBar";
 import DurationPicker from "@/components/DurationPicker";
+import TagPicker from "@/components/TagPicker";
 import {
   CircleStar,
   ListPlus,
@@ -18,6 +19,18 @@ export default function Home() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [viewAktif, setViewAktif] = useState("Home");
   const [durasiTugas, setDurasiTugas] = useState("");
+  const [daftarTagGlobal, setDaftarTagGlobal] = useState([
+    "Education",
+    "Skills",
+    "Hobby",
+  ]);
+  const [tagAktif, setTagAktif] = useState("");
+  const tanganiBuatTagBaru = (tagBaru: string) => {
+    // Tambahkan tag baru ke daftar memori global
+    setDaftarTagGlobal([...daftarTagGlobal, tagBaru]);
+    // Langsung jadikan tag baru tersebut sebagai yang terpilih
+    setTagAktif(tagBaru);
+  };
   return (
     <div className="grid grid-cols-[1fr_16fr] grid-rows-[auto_1fr] h-screen ">
       <Navigation viewAktif={viewAktif} onUbahView={setViewAktif} />
@@ -124,9 +137,12 @@ export default function Home() {
                       <DurationPicker
                         onPilihDurasi={(hasil) => setDurasiTugas(hasil)}
                       />
-                      <button className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
-                        <Tag className="size-[clamp(1rem,3vw,1.75rem)]" />
-                      </button>
+                      <TagPicker
+                        daftarTag={daftarTagGlobal}
+                        tagTerpilih={tagAktif}
+                        onPilihTag={(tag) => setTagAktif(tag)}
+                        onBuatTagBaru={tanganiBuatTagBaru}
+                      />
                     </div>
 
                     <button className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
