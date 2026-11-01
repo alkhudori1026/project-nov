@@ -224,6 +224,26 @@ export default function Home() {
     setDraftEditSesi(null);
   };
 
+  // State untuk melacak sesi mana yang sedang dalam status konfirmasi hapus
+  const [idHapusSesi, setIdHapusSesi] = useState<string | null>(null);
+
+  // Fungsi eksekutor sejati yang akan dipanggil SETELAH konfirmasi disetujui
+  const eksekusiHapusSesi = (id: string) => {
+    setRiwayatSesi(riwayatSesi.filter((s) => s.id !== id));
+    setIdHapusSesi(null); // Tutup panel konfirmasi
+  };
+
+  const tanganiHapusRiwayatSesi = (id: string) => {
+    // Lapis Pengaman UX: Konfirmasi sebelum menghancurkan bongkahan data besar
+    const konfirmasi = window.confirm(
+      "Apakah kamu yakin ingin menghapus log sesi ini?",
+    );
+    if (!konfirmasi) return;
+
+    // Saring array untuk membuang sesi yang cocok dengan id, lalu timpa gudang utama
+    setRiwayatSesi(riwayatSesi.filter((sesi) => sesi.id !== id));
+  };
+
   return (
     <div className="grid grid-cols-[1fr_16fr] grid-rows-[auto_1fr] h-screen ">
       <Navigation viewAktif={viewAktif} onUbahView={setViewAktif} />
@@ -231,7 +251,7 @@ export default function Home() {
       {/*-----[ Main Page ]-----*/}
 
       <div
-        className="bg-slate-100 px-6 flex-1 py-4 overflow-y-auto no-scrollbar relative"
+        className="bg-slate-100 px-12 flex-1 py-4 overflow-y-auto no-scrollbar relative"
         onScroll={tanganiScroll}
       >
         <div className="max-w-250 mx-auto bg-white rounded-3xl shadow-sm relative pb-4">
@@ -239,7 +259,7 @@ export default function Home() {
           <header
             className={`sticky -top-4 z-30 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md transition-all duration-300 border-b ${isScrolled ? "rounded-none shadow-md border-transparent" : "rounded-t-3xl shadow-none border-slate-100"}`}
           >
-            <h1 className="font-semibold text-xl text-slate-800">
+            <h1 className="font-semibold text-[clamp(1.25rem,3vw,1.75rem)] text-slate-800">
               Sabtu, 31 Oktober 2026
             </h1>
             <IconButton
@@ -513,29 +533,60 @@ export default function Home() {
                       {/* PEMBATAS SESI (Sama persis seperti yang kamu rancang sebelumnya) */}
                       <div className="group flex items-center gap-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-0 opacity-0 overflow-hidden group-hover:w-[3.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1">
-                            <IconButton
-                              icon={Pencil}
-                              onClick={() => {
-                                setIdEditSesi(sesi.id);
-                                // 1. Saat tombol Edit ditekan, SALIN seluruh data sesi ke Sandbox
-                                setDraftEditSesi({
-                                  ...sesi,
-                                  tugas: [...sesi.tugas],
-                                  refleksi: [...sesi.refleksi],
-                                });
-                              }}
-                              className="w-6 h-6 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
-                            />
-                            <IconButton
-                              icon={Trash2}
-                              onClick={() => tanganiHapusRiwayatSesi(sesi.id)}
-                              className="w-6 h-6 !text-red-400 hover:!bg-red-50 focus:opacity-100"
-                            />
-                          </div>
-                          <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 -ml-2 group-hover:ml-0 delay-300 transition-all duration-300 rounded-full tracking-wide">
-                            {sesi.waktuMulai} - {sesi.waktuSelesai}
-                          </p>
+                          {idHapusSesi === sesi.id ? (
+                            // ==========================================
+                            // ⚠️ MODE KONFIRMASI HAPUS (INLINE)
+                            // ==========================================
+                            <div className="flex items-center gap-3 bg-red-50 border border-red-200/80 px-2 py-1 rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-left-2 duration-200">
+                              <span className="text-xs font-bold text-red-600 pl-2">
+                                Hapus sesi ini?
+                              </span>
+                              <div className="flex gap-1 shrink-0">
+                                <IconButton
+                                  icon={Trash2}
+                                  onClick={() => eksekusiHapusSesi(sesi.id)}
+                                  className="w-6 h-6 !bg-white !text-red-500 hover:!bg-red-500 hover:!text-white shadow-sm"
+                                />
+                                <IconButton
+                                  icon={X}
+                                  onClick={() => setIdHapusSesi(null)}
+                                  className="w-6 h-6 !bg-white !text-slate-500 hover:!bg-slate-100 border border-slate-200"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            // ==========================================
+                            // 📖 MODE BACA NORMAL (Jam & Tombol Hover)
+                            // ==========================================
+                            <div className="flex items-center gap-2">
+                              {/* Tombol Aksi Kiri (Mendorong dari kiri ke kanan) */}
+                              <div className="w-0 opacity-0 overflow-hidden group-hover:w-[3.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1">
+                                <IconButton
+                                  icon={Pencil}
+                                  onClick={() => {
+                                    setIdEditSesi(sesi.id);
+                                    setDraftEditSesi({
+                                      ...sesi,
+                                      tugas: [...sesi.tugas],
+                                      refleksi: [...sesi.refleksi],
+                                    });
+                                  }}
+                                  className="w-6 h-6 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
+                                />
+                                <IconButton
+                                  icon={Trash2}
+                                  // PERHATIKAN: Tombol ini sekarang hanya MEMICU state konfirmasi, bukan langsung menghapus
+                                  onClick={() => setIdHapusSesi(sesi.id)}
+                                  className="w-6 h-6 !text-red-400 hover:!bg-red-50 focus:opacity-100"
+                                />
+                              </div>
+
+                              {/* Teks Waktu Sesi (Menyusut/Bergeser sesuai animasi hover-mu) */}
+                              <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 -ml-2 group-hover:ml-0 delay-300 transition-all duration-300 rounded-full tracking-wide">
+                                {sesi.waktuMulai} - {sesi.waktuSelesai}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 border-t-2 border-dashed border-slate-200 min-w-4" />
                         <div className="flex gap-1.5 shrink-0">

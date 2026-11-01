@@ -1,6 +1,6 @@
 export default function TopBar() {
   return (
-    <div className="bg-slate-100 px-8 py-[clamp(0.5rem,2vw,1rem)] flex flex-col md:flex-row gap-2 justify-between items-center">
+    <div className="bg-slate-100 px-12 py-[clamp(0.5rem,2vw,1rem)] flex flex-col md:flex-row gap-2 justify-between items-center">
       <p className="font-bold text-[clamp(1.5rem,2vw,2.5rem)] text-nowrap">
         Productivity Go
       </p>
