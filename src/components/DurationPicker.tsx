@@ -6,11 +6,13 @@ import { Timer } from "lucide-react";
 interface DurationPickerProps {
   onPilihDurasi: (durasiTeks: string) => void;
   durasiTerpilih?: string;
+  isCompact?: boolean; // 👈 PROPERTI BARU
 }
 
 export default function DurationPicker({
   onPilihDurasi,
   durasiTerpilih = "",
+  isCompact = false,
 }: DurationPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [jam, setJam] = useState(0);
@@ -54,17 +56,44 @@ export default function DurationPicker({
   };
 
   return (
-    <div className="relative inline-block text-left min-w-fit" ref={popoverRef}>
-      {/* Saklar Pemicu (Trigger) */}
+    <div className="relative inline-block text-left" ref={popoverRef}>
+      {/* Saklar Pemicu yang Dimodifikasi */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors font-medium text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        // Tambahkan group/picker sebagai pemicu sensor hover mandiri
+        className={`group/picker flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+          ${
+            isCompact
+              ? "bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full h-8 px-1.5" // Mode Ringkas: Bulat
+              : "p-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full font-medium text-sm gap-2" // Mode Normal: Kapsul
+          }
+        `}
       >
-        <Timer className="w-5 h-5 text-slate-500" />
-        <span>{durasiTerpilih ? durasiTerpilih : "Durasi"}</span>
-      </button>
+        <Timer
+          className={`${isCompact ? "w-5 h-5 shrink-0" : "w-5 h-5 text-slate-500"}`}
+        />
 
+        {/* Trik Mesin Grid Ekspansi */}
+        <div
+          className={`grid transition-all duration-300 delay-700 ease-out ${
+            isCompact
+              ? isOpen
+                ? "grid-cols-[1fr]"
+                : "grid-cols-[0fr] group-hover/picker:grid-cols-[1fr]"
+              : "grid-cols-[1fr]"
+          }`}
+        >
+          <span
+            className={`overflow-hidden whitespace-nowrap ${isCompact ? "text-xs font-semibold" : ""}`}
+          >
+            <span className={isCompact ? "pl-1.5 pr-1" : ""}>
+              {durasiTerpilih ||
+                (jam > 0 || menit > 0 ? `${jam} j ${menit} m` : "Durasi")}
+            </span>
+          </span>
+        </div>
+      </button>
       {/* Mesin Popover (Laci Operasional) */}
       {isOpen && (
         <div className="absolute left-0 z-50 mt-2 w-64 p-4 origin-top-right bg-white border border-slate-200 shadow-xl rounded-3xl">

@@ -9,6 +9,7 @@ interface TagPickerProps {
   tagTerpilih: string;
   onPilihTag: (tag: string) => void;
   onBuatTagBaru: (tagBaru: string) => void;
+  isCompact?: boolean; // 👈 PROPERTI BARU
 }
 
 export default function TagPicker({
@@ -16,6 +17,7 @@ export default function TagPicker({
   tagTerpilih,
   onPilihTag,
   onBuatTagBaru,
+  isCompact = false,
 }: TagPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [kataKunci, setKataKunci] = useState("");
@@ -64,18 +66,38 @@ export default function TagPicker({
 
   return (
     <div className="relative inline-block text-left" ref={popoverRef}>
-      {/* SAKLAR PEMICU */}
+      {/* Saklar Pemicu yang Dimodifikasi */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors font-medium text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-          tagTerpilih
-            ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" // Mode: Sudah ada tag terpilih
-            : "bg-slate-100 text-slate-600 hover:bg-slate-200" // Mode: Kosong
-        }`}
+        className={`group/picker flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+          ${
+            isCompact
+              ? `h-8 px-1.5 rounded-full ${tagTerpilih ? "bg-indigo-50 text-indigo-600 hover:bg-indigo-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`
+              : `px-3 py-2 rounded-lg gap-2 font-medium text-sm ${tagTerpilih ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`
+          }
+        `}
       >
-        <TagIcon className="w-4 h-4" />
-        <span>{tagTerpilih ? tagTerpilih : "Pilih Tag"}</span>
+        <TagIcon className={`${isCompact ? "w-4 h-4 shrink-0" : "w-4 h-4"}`} />
+
+        {/* Trik Mesin Grid Ekspansi */}
+        <div
+          className={`grid transition-all duration-300 delay-700 ease-out ${
+            isCompact
+              ? isOpen
+                ? "grid-cols-[1fr]"
+                : "grid-cols-[0fr] group-hover/picker:grid-cols-[1fr]"
+              : "grid-cols-[1fr]"
+          }`}
+        >
+          <span
+            className={`overflow-hidden whitespace-nowrap ${isCompact ? "text-xs font-semibold" : ""}`}
+          >
+            <span className={isCompact ? "pl-1.5 pr-1" : ""}>
+              {tagTerpilih ? tagTerpilih : "Pilih Tag"}
+            </span>
+          </span>
+        </div>
       </button>
 
       {/* LACI OPERASIONAL (COMBOBOX) */}
