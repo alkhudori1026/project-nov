@@ -4,6 +4,9 @@ import Navigation from "@/components/Navigasi";
 import TopBar from "@/components/TopBar";
 import DurationPicker from "@/components/DurationPicker";
 import TagPicker from "@/components/TagPicker";
+import TaskList from "@/components/TaskList";
+import ReflectionList from "@/components/ReflectionList";
+import SessionList from "@/components/SessionList";
 import {
   CircleStar,
   ListPlus,
@@ -124,46 +127,6 @@ export default function Home() {
   const tanganiHapusRefleksi = (idYangDihapus: string) => {
     setDaftarRefleksi(daftarRefleksi.filter((r) => r.id !== idYangDihapus));
   };
-  // ... di dalam Home()
-  const [idEditRefleksi, setIdEditRefleksi] = useState<string | null>(null);
-  const [teksEditRefleksi, setTeksEditRefleksi] = useState("");
-
-  const tanganiSimpanEditRefleksi = (id: string) => {
-    if (!teksEditRefleksi.trim()) return; // Jangan simpan jika draf kosong
-
-    // Saring dan timpa teks pada ID yang cocok
-    const daftarBaru = daftarRefleksi.map((ref) =>
-      ref.id === id ? { ...ref, teks: teksEditRefleksi } : ref,
-    );
-
-    setDaftarRefleksi(daftarBaru);
-    setIdEditRefleksi(null); // Matikan mode edit
-  };
-
-  // State untuk menyimpan ID tugas yang sedang diedit
-  const [idEditTugas, setIdEditTugas] = useState<string | null>(null);
-  // State untuk menyimpan teks sementara saat mengetik
-  const [teksEditTugas, setTeksEditTugas] = useState("");
-  const [tagEditTugas, setTagEditTugas] = useState(""); // Memori baru
-  const [durasiEditTugas, setDurasiEditTugas] = useState(""); // Memori baru
-
-  const tanganiSimpanEditTugas = (id: string) => {
-    if (!teksEditTugas.trim()) return;
-
-    const daftarBaru = daftarTugas.map((tugas) =>
-      tugas.id === id
-        ? {
-            ...tugas,
-            nama: teksEditTugas,
-            tag: tagEditTugas,
-            durasi: durasiEditTugas,
-          }
-        : tugas,
-    );
-
-    setDaftarTugas(daftarBaru);
-    setIdEditTugas(null); // Tutup mode edit
-  };
 
   // State untuk jam mulai dan selesai
   const [waktuMulai, setWaktuMulai] = useState("08:00");
@@ -202,46 +165,8 @@ export default function Home() {
     // atau membiarkannya sebagai default.
   };
 
-  // State Memori Edit Sesi
-  const [idEditSesi, setIdEditSesi] = useState<string | null>(null);
-  const [draftEditSesi, setDraftEditSesi] = useState<Sesi | null>(null);
-
-  // Fungsi Eksekutor
-  const tanganiSimpanEditSesi = () => {
-    if (!draftEditSesi) return;
-
-    // Ekstrak ulang tag unik berjaga-jaga jika ada tag yang diganti saat edit
-    const tagBaru = Array.from(new Set(draftEditSesi.tugas.map((t) => t.tag)));
-    const sesiFinal = { ...draftEditSesi, tagUnik: tagBaru };
-
-    // Timpa data lama dengan data dari Kotak Pasir
-    setRiwayatSesi(
-      riwayatSesi.map((s) => (s.id === idEditSesi ? sesiFinal : s)),
-    );
-
-    // Tutup mode edit & bersihkan kotak pasir
-    setIdEditSesi(null);
-    setDraftEditSesi(null);
-  };
-
-  // State untuk melacak sesi mana yang sedang dalam status konfirmasi hapus
-  const [idHapusSesi, setIdHapusSesi] = useState<string | null>(null);
-
-  // Fungsi eksekutor sejati yang akan dipanggil SETELAH konfirmasi disetujui
-  const eksekusiHapusSesi = (id: string) => {
+  const tanganiHapusSesiLengkap = (id: string) => {
     setRiwayatSesi(riwayatSesi.filter((s) => s.id !== id));
-    setIdHapusSesi(null); // Tutup panel konfirmasi
-  };
-
-  const tanganiHapusRiwayatSesi = (id: string) => {
-    // Lapis Pengaman UX: Konfirmasi sebelum menghancurkan bongkahan data besar
-    const konfirmasi = window.confirm(
-      "Apakah kamu yakin ingin menghapus log sesi ini?",
-    );
-    if (!konfirmasi) return;
-
-    // Saring array untuk membuang sesi yang cocok dengan id, lalu timpa gudang utama
-    setRiwayatSesi(riwayatSesi.filter((sesi) => sesi.id !== id));
   };
 
   return (
@@ -339,269 +264,21 @@ export default function Home() {
                   key={sesi.id}
                   className="flex flex-col gap-4 opacity-80 hover:opacity-100 transition-opacity mb-6"
                 >
-                  {idEditSesi === sesi.id && draftEditSesi ? (
-                    // ==========================================
-                    // 🛠️ MODE EDIT TOTAL (SANDBOX AKTIF)
-                    // ==========================================
-                    <div className="flex flex-col gap-5 bg-blue-50/40 p-5 rounded-3xl border border-blue-200/60 shadow-inner">
-                      {/* --- HEADER EDIT (Jam & Tuas Simpan) --- */}
-                      <div className="flex justify-between items-center border-b border-blue-200/50 pb-4">
-                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-blue-300 shadow-sm">
-                          <input
-                            type="time"
-                            value={draftEditSesi.waktuMulai}
-                            onChange={(e) =>
-                              setDraftEditSesi({
-                                ...draftEditSesi,
-                                waktuMulai: e.target.value,
-                              })
-                            }
-                            className="text-sm font-bold outline-none bg-transparent text-slate-700"
-                          />
-                          <span className="text-slate-400 font-medium">→</span>
-                          <input
-                            type="time"
-                            value={draftEditSesi.waktuSelesai}
-                            onChange={(e) =>
-                              setDraftEditSesi({
-                                ...draftEditSesi,
-                                waktuSelesai: e.target.value,
-                              })
-                            }
-                            className="text-sm font-bold outline-none bg-transparent text-slate-700"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <IconButton
-                            icon={Check}
-                            onClick={tanganiSimpanEditSesi}
-                            className="!bg-emerald-500 !text-white hover:!bg-emerald-600 size-9 shadow-sm"
-                          />
-                          <IconButton
-                            icon={X}
-                            onClick={() => {
-                              setIdEditSesi(null);
-                              setDraftEditSesi(null);
-                            }}
-                            className="!bg-slate-200 !text-slate-600 hover:!bg-slate-300 size-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-col md:flex-row gap-3 ">
-                        {/* --- AREA EDIT TUGAS --- */}
-                        <div className="flex flex-col gap-2 flex-1 min-w-0">
-                          <h3 className="text-[10px] font-bold text-blue-800/50 uppercase tracking-wider ml-1">
-                            Edit Tugas
-                          </h3>
-                          {draftEditSesi.tugas.map((t) => (
-                            <div
-                              key={t.id}
-                              className="flex flex-wrap justify-end gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
-                            >
-                              <input
-                                type="text"
-                                value={t.nama}
-                                onChange={(e) => {
-                                  // Memanipulasi array di dalam objek Kotak Pasir
-                                  const newTugas = draftEditSesi.tugas.map(
-                                    (x) =>
-                                      x.id === t.id
-                                        ? { ...x, nama: e.target.value }
-                                        : x,
-                                  );
-                                  setDraftEditSesi({
-                                    ...draftEditSesi,
-                                    tugas: newTugas,
-                                  });
-                                }}
-                                className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-blue-100 min-w-[200px]"
-                              />
-                              <div className="flex gap-1 shrink-0">
-                                <DurationPicker
-                                  isCompact
-                                  durasiTerpilih={t.durasi}
-                                  onPilihDurasi={(val) => {
-                                    const newTugas = draftEditSesi.tugas.map(
-                                      (x) =>
-                                        x.id === t.id
-                                          ? { ...x, durasi: val }
-                                          : x,
-                                    );
-                                    setDraftEditSesi({
-                                      ...draftEditSesi,
-                                      tugas: newTugas,
-                                    });
-                                  }}
-                                />
-                                <TagPicker
-                                  isCompact
-                                  daftarTag={daftarTagGlobal}
-                                  tagTerpilih={t.tag}
-                                  onPilihTag={(val) => {
-                                    const newTugas = draftEditSesi.tugas.map(
-                                      (x) =>
-                                        x.id === t.id ? { ...x, tag: val } : x,
-                                    );
-                                    setDraftEditSesi({
-                                      ...draftEditSesi,
-                                      tugas: newTugas,
-                                    });
-                                  }}
-                                  onBuatTagBaru={(val) => {
-                                    setDaftarTagGlobal([
-                                      ...daftarTagGlobal,
-                                      val,
-                                    ]);
-                                    const newTugas = draftEditSesi.tugas.map(
-                                      (x) =>
-                                        x.id === t.id ? { ...x, tag: val } : x,
-                                    );
-                                    setDraftEditSesi({
-                                      ...draftEditSesi,
-                                      tugas: newTugas,
-                                    });
-                                  }}
-                                />
-                                <IconButton
-                                  icon={Trash2}
-                                  onClick={() => {
-                                    const newTugas = draftEditSesi.tugas.filter(
-                                      (x) => x.id !== t.id,
-                                    );
-                                    setDraftEditSesi({
-                                      ...draftEditSesi,
-                                      tugas: newTugas,
-                                    });
-                                  }}
-                                  className="w-8 h-8 !text-red-400 hover:!bg-red-50 ml-1"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* --- AREA EDIT REFLEKSI --- */}
-                        <div className="flex flex-col gap-2 flex-1 min-w-0">
-                          <h3 className="text-[10px] font-bold text-blue-800/50 uppercase tracking-wider ml-1">
-                            Edit Refleksi
-                          </h3>
-                          {draftEditSesi.refleksi.map((r) => (
-                            <div
-                              key={r.id}
-                              className="flex gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
-                            >
-                              <input
-                                type="text"
-                                value={r.teks}
-                                onChange={(e) => {
-                                  const newRef = draftEditSesi.refleksi.map(
-                                    (x) =>
-                                      x.id === r.id
-                                        ? { ...x, teks: e.target.value }
-                                        : x,
-                                  );
-                                  setDraftEditSesi({
-                                    ...draftEditSesi,
-                                    refleksi: newRef,
-                                  });
-                                }}
-                                className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-blue-100"
-                              />
-                              <IconButton
-                                icon={Trash2}
-                                onClick={() => {
-                                  const newRef = draftEditSesi.refleksi.filter(
-                                    (x) => x.id !== r.id,
-                                  );
-                                  setDraftEditSesi({
-                                    ...draftEditSesi,
-                                    refleksi: newRef,
-                                  });
-                                }}
-                                className="w-8 h-8 !text-red-400 hover:!bg-red-50 shrink-0"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    // ==========================================
-                    // 📖 MODE BACA (Batas Waktu, Tombol Hover, dan Konten)
-                    // ==========================================
-                    <>
-                      {/* PEMBATAS SESI (Sama persis seperti yang kamu rancang sebelumnya) */}
-                      <div className="group flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          {idHapusSesi === sesi.id ? (
-                            // ==========================================
-                            // ⚠️ MODE KONFIRMASI HAPUS (INLINE)
-                            // ==========================================
-                            <div className="flex items-center gap-3 bg-red-50 border border-red-200/80 px-2 py-1 rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-left-2 duration-200">
-                              <span className="text-xs font-bold text-red-600 pl-2">
-                                Hapus sesi ini?
-                              </span>
-                              <div className="flex gap-1 shrink-0">
-                                <IconButton
-                                  icon={Trash2}
-                                  onClick={() => eksekusiHapusSesi(sesi.id)}
-                                  className="w-6 h-6 !bg-white !text-red-500 hover:!bg-red-500 hover:!text-white shadow-sm"
-                                />
-                                <IconButton
-                                  icon={X}
-                                  onClick={() => setIdHapusSesi(null)}
-                                  className="w-6 h-6 !bg-white !text-slate-500 hover:!bg-slate-100 border border-slate-200"
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            // ==========================================
-                            // 📖 MODE BACA NORMAL (Jam & Tombol Hover)
-                            // ==========================================
-                            <div className="flex items-center gap-2">
-                              {/* Tombol Aksi Kiri (Mendorong dari kiri ke kanan) */}
-                              <div className="w-0 opacity-0 overflow-hidden group-hover:w-[3.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1">
-                                <IconButton
-                                  icon={Pencil}
-                                  onClick={() => {
-                                    setIdEditSesi(sesi.id);
-                                    setDraftEditSesi({
-                                      ...sesi,
-                                      tugas: [...sesi.tugas],
-                                      refleksi: [...sesi.refleksi],
-                                    });
-                                  }}
-                                  className="w-6 h-6 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
-                                />
-                                <IconButton
-                                  icon={Trash2}
-                                  // PERHATIKAN: Tombol ini sekarang hanya MEMICU state konfirmasi, bukan langsung menghapus
-                                  onClick={() => setIdHapusSesi(sesi.id)}
-                                  className="w-6 h-6 !text-red-400 hover:!bg-red-50 focus:opacity-100"
-                                />
-                              </div>
-
-                              {/* Teks Waktu Sesi (Menyusut/Bergeser sesuai animasi hover-mu) */}
-                              <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 -ml-2 group-hover:ml-0 delay-300 transition-all duration-300 rounded-full tracking-wide">
-                                {sesi.waktuMulai} - {sesi.waktuSelesai}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 border-t-2 border-dashed border-slate-200 min-w-4" />
-                        <div className="flex gap-1.5 shrink-0">
-                          {sesi.tagUnik.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2.5 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-md"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  <SessionList
+                    key={sesi.id}
+                    sesi={sesi}
+                    daftarTagGlobal={daftarTagGlobal}
+                    onSimpan={(sesiDiperbarui) => {
+                      // Direktur menimpa sesi lama dengan sesi yang baru diedit
+                      setRiwayatSesi(
+                        riwayatSesi.map((s) =>
+                          s.id === sesiDiperbarui.id ? sesiDiperbarui : s,
+                        ),
+                      );
+                    }}
+                    onHapus={tanganiHapusSesiLengkap}
+                    onBuatTagBaru={tanganiBuatTagBaru}
+                  />
                   {/* Konten Log Selesai (Render Dinamis) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Kolom Tugas */}
@@ -709,107 +386,23 @@ export default function Home() {
                       Tugas apa yang diselesaikan?
                     </h2>
                     {daftarTugas.map((tugas) => (
-                      <div
+                      <TaskList
                         key={tugas.id}
-                        // PERHATIKAN: overflow-visible aktif saat diedit agar laci popover tidak terpotong!
-                        className={`group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-blue-600 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out
-      ${idEditTugas === tugas.id ? "overflow-visible z-20" : "overflow-hidden"}
-    `}
-                      >
-                        {idEditTugas === tugas.id ? (
-                          // ==========================
-                          // 🛠️ MODE EDIT MENYELURUH
-                          // ==========================
-                          <div className="flex flex-wrap items-center justify-end w-full gap-2">
-                            {/* Tombol Aksi Kiri */}
-                            <div className="flex shrink-0 gap-1 w-16 ">
-                              <IconButton
-                                icon={Check}
-                                onClick={() => tanganiSimpanEditTugas(tugas.id)}
-                                className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
-                              />
-                              <IconButton
-                                icon={X}
-                                onClick={() => setIdEditTugas(null)}
-                                className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
-                              />
-                            </div>
-
-                            {/* Input Nama Tugas */}
-                            <input
-                              type="text"
-                              className="text-sm font-medium text-slate-700 outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors min-w-35 flex-1"
-                              value={teksEditTugas}
-                              onChange={(e) => setTeksEditTugas(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter")
-                                  tanganiSimpanEditTugas(tugas.id);
-                                if (e.key === "Escape") setIdEditTugas(null);
-                              }}
-                              autoFocus
-                            />
-
-                            {/* Mesin Picker Tag & Durasi (Di-render ulang untuk baris ini) */}
-                            <div className="flex gap-1 shrink-0">
-                              <DurationPicker
-                                onPilihDurasi={setDurasiEditTugas}
-                                // Opsional: jika DurationPicker milikmu belum memiliki prop ini,
-                                // abaikan atau tambahkan agar ia bisa menampilkan nilai saat ini
-                                durasiTerpilih={durasiEditTugas}
-                                isCompact={true}
-                              />
-                              <TagPicker
-                                daftarTag={daftarTagGlobal}
-                                tagTerpilih={tagEditTugas}
-                                onPilihTag={setTagEditTugas}
-                                onBuatTagBaru={(tag) => {
-                                  setDaftarTagGlobal([...daftarTagGlobal, tag]);
-                                  setTagEditTugas(tag);
-                                }}
-                                isCompact={true}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          // ==========================
-                          // 📖 MODE BACA (TIDAK BERUBAH)
-                          // ==========================
-                          <>
-                            <div className="flex items-center flex-1 min-w-0">
-                              <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1 mr-2">
-                                {/* Tombol Pemicu Mode Edit */}
-                                <IconButton
-                                  icon={Pencil}
-                                  onClick={() => {
-                                    setIdEditTugas(tugas.id);
-                                    setTeksEditTugas(tugas.nama);
-                                    setTagEditTugas(tugas.tag); // Muat tag yang ada
-                                    setDurasiEditTugas(tugas.durasi); // Muat durasi yang ada
-                                  }}
-                                  className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100 shrink-0"
-                                />
-                                <IconButton
-                                  icon={Trash2}
-                                  onClick={() => tanganiHapusTugas(tugas.id)}
-                                  className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100 shrink-0"
-                                />
-                              </div>
-                              <h3 className="text-left font-medium text-slate-700 truncate flex-1 min-w-0">
-                                {tugas.nama}
-                              </h3>
-                            </div>
-
-                            <div className="flex gap-2 shrink-0 ml-4">
-                              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded-md px-2 py-1">
-                                {tugas.tag}
-                              </span>
-                              <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-1">
-                                {tugas.durasi}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                        tugas={tugas}
+                        daftarTagGlobal={daftarTagGlobal}
+                        // 1. Saat pekerja melapor tugas selesai diedit:
+                        onSimpan={(tugasYangDiedit) => {
+                          setDaftarTugas(
+                            daftarTugas.map((t) =>
+                              t.id === tugasYangDiedit.id ? tugasYangDiedit : t,
+                            ),
+                          );
+                        }}
+                        // 2. Saat pekerja menekan tombol tong sampah:
+                        onHapus={tanganiHapusTugas}
+                        // 3. Saat pekerja mengetik tag baru di dalam TagPicker:
+                        onBuatTagBaru={tanganiBuatTagBaru}
+                      />
                     ))}
                     <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between w-full gap-2">
                       <input
@@ -853,75 +446,19 @@ export default function Home() {
                       Bagaimana kondisi energi?
                     </h2>
                     {daftarRefleksi.map((ref) => (
-                      <div
+                      <ReflectionList
                         key={ref.id}
-                        className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-slate-400 hover:before:w-[4px] before:transition-all before:duration-300 before:ease-out"
-                      >
-                        {idEditRefleksi === ref.id ? (
-                          // ==========================
-                          // 🛠️ MODE EDIT
-                          // ==========================
-                          <div className="flex items-center w-full gap-2 z-10">
-                            <input
-                              type="text"
-                              className="w-full text-sm outline-none bg-slate-50 px-2 py-1.5 rounded-md border border-blue-300 focus:border-blue-500 transition-colors"
-                              value={teksEditRefleksi}
-                              onChange={(e) =>
-                                setTeksEditRefleksi(e.target.value)
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter")
-                                  tanganiSimpanEditRefleksi(ref.id);
-                                if (e.key === "Escape") setIdEditRefleksi(null);
-                              }}
-                              autoFocus // Kursor langsung berkedip di sini saat mode edit terbuka
-                            />
-                            <div className="flex shrink-0 gap-1">
-                              <IconButton
-                                icon={Check}
-                                onClick={() =>
-                                  tanganiSimpanEditRefleksi(ref.id)
-                                }
-                                className="w-8 h-8 !text-emerald-600 hover:!bg-emerald-50"
-                              />
-                              <IconButton
-                                icon={X}
-                                onClick={() => setIdEditRefleksi(null)}
-                                className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          // ==========================
-                          // 📖 MODE BACA
-                          // ==========================
-                          <>
-                            <p className="text-sm text-slate-700 flex-1 min-w-0 truncate">
-                              {ref.teks}
-                            </p>
-
-                            {/* Kontainer Tombol Aksi (Sejajar di Kanan, Muncul saat Hover) */}
-                            <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1 ml-2 justify-end">
-                              {/* Tombol Edit */}
-                              <IconButton
-                                icon={Pencil}
-                                onClick={() => {
-                                  setIdEditRefleksi(ref.id);
-                                  setTeksEditRefleksi(ref.teks);
-                                }}
-                                className="w-8 h-8 !text-blue-500 hover:!bg-blue-50 focus:opacity-100"
-                              />
-
-                              {/* Tombol Hapus */}
-                              <IconButton
-                                icon={Trash2}
-                                onClick={() => tanganiHapusRefleksi(ref.id)}
-                                className="w-8 h-8 !text-red-400 hover:!text-red-600 hover:!bg-red-50 focus:opacity-100"
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
+                        refleksi={ref}
+                        onSimpan={(refleksiBaru) => {
+                          // Manajer menimpa data gudang dengan laporan refleksi baru dari Pekerja
+                          setDaftarRefleksi(
+                            daftarRefleksi.map((r) =>
+                              r.id === refleksiBaru.id ? refleksiBaru : r,
+                            ),
+                          );
+                        }}
+                        onHapus={tanganiHapusRefleksi}
+                      />
                     ))}
                     <div className="flex justify-between items-center w-full gap-2 mt-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                       <input
