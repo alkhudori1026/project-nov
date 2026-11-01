@@ -7,17 +7,7 @@ import TagPicker from "@/components/TagPicker";
 import TaskList from "@/components/TaskList";
 import ReflectionList from "@/components/ReflectionList";
 import SessionList from "@/components/SessionList";
-import {
-  CircleStar,
-  ListPlus,
-  Tag,
-  PencilSparkles,
-  PenLine,
-  Trash2,
-  Pencil,
-  Check,
-  X,
-} from "lucide-react";
+import { CircleStar, ListPlus, PencilSparkles, PenLine } from "lucide-react";
 
 // 1. Kontrak Tipe Data: Bentuk pasti dari satu objek tugas
 interface Tugas {
@@ -41,25 +31,60 @@ interface Sesi {
   refleksi: Refleksi[];
 }
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function Home() {
+export default function Jurnals() {
   const [isFavorite, setIsFavorite] = useState(false);
-  const [viewAktif, setViewAktif] = useState("Home");
-  const [durasiTugas, setDurasiTugas] = useState("");
-  const [daftarTagGlobal, setDaftarTagGlobal] = useState([
-    "Education",
-    "Skills",
-    "Hobby",
-  ]);
   const [tagAktif, setTagAktif] = useState("");
-  const tanganiBuatTagBaru = (tagBaru: string) => {
-    // Tambahkan tag baru ke daftar memori global
-    setDaftarTagGlobal([...daftarTagGlobal, tagBaru]);
-    // Langsung jadikan tag baru tersebut sebagai yang terpilih
-    setTagAktif(tagBaru);
-  };
+
+  const [riwayatSesi, setRiwayatSesi] = useState<Sesi[]>([]);
+  const [daftarTagGlobal, setDaftarTagGlobal] = useState<string[]>([]);
+  const [isMounted, setIsMounted] = useState(false); // Indikator bahwa halaman sudah mendarat di browser
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // ====================================================
+  // 1. PEKERJA BONGKAR AWAL (Hanya jalan setelah mendarat di Browser)
+  // ====================================================
+  useEffect(() => {
+    setIsMounted(true); // Beritahu sistem bahwa kita aman untuk mengakses localStorage
+
+    const memoriSesi = localStorage.getItem("jurnal_riwayatSesi");
+    const memoriTag = localStorage.getItem("jurnal_daftarTagGlobal");
+
+    if (memoriSesi) setRiwayatSesi(JSON.parse(memoriSesi));
+    if (memoriTag) {
+      setDaftarTagGlobal(JSON.parse(memoriTag));
+    } else {
+      // Jika laci tag kosong (pengguna baru), berikan tag bawaan
+      setDaftarTagGlobal(["Education", "Skills", "Hobby"]);
+    }
+  }, []);
+
+  // ====================================================
+  // 2. PEKERJA SIMPAN SESI (Jalan setiap riwayatSesi berubah)
+  // ====================================================
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem("jurnal_riwayatSesi", JSON.stringify(riwayatSesi));
+    }
+  }, [riwayatSesi, isMounted]);
+
+  // ====================================================
+  // 3. PEKERJA SIMPAN TAG (Jalan setiap daftarTagGlobal berubah)
+  // ====================================================
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem(
+        "jurnal_daftarTagGlobal",
+        JSON.stringify(daftarTagGlobal),
+      );
+    }
+  }, [daftarTagGlobal, isMounted]);
+
+  const tanganiBuatTagBaru = (tagBaru: string) => {
+    setDaftarTagGlobal([...daftarTagGlobal, tagBaru]); // Tambahkan tag baru ke daftar memori global
+    setTagAktif(tagBaru); // Langsung jadikan tag baru tersebut sebagai yang terpilih
+  };
 
   // 2. Fungsi membaca pergerakan scroll
   const tanganiScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -138,8 +163,6 @@ export default function Home() {
     new Set(daftarTugas.map((tugas) => tugas.tag)),
   );
 
-  const [riwayatSesi, setRiwayatSesi] = useState<Sesi[]>([]);
-
   const tanganiCatatSesi = () => {
     // A. Validasi Keamanan: Cegah penyimpanan jika meja kerja kosong
     if (daftarTugas.length === 0 && daftarRefleksi.length === 0) return;
@@ -169,8 +192,10 @@ export default function Home() {
     setRiwayatSesi(riwayatSesi.filter((s) => s.id !== id));
   };
 
+  if (!isMounted) return null;
+
   return (
-    <div className="grid grid-rows-[1fr_10fr_1.5fr]  md:grid-cols-[1fr_16fr] md:grid-rows-[auto_1fr]  h-screen">
+    <div className="grid grid-rows-[1fr_10fr_1.5fr] md:grid-cols-[1fr_16fr] md:grid-rows-[auto_1fr]  h-screen">
       <Navigation />
       <TopBar />
       {/*-----[ Main Page ]-----*/}

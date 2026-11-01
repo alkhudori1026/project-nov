@@ -74,7 +74,7 @@ export default function TagPicker({
           ${
             isCompact
               ? `h-8 px-1.5 rounded-full ${tagTerpilih ? "bg-indigo-50 text-indigo-600 hover:bg-indigo-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`
-              : `px-3 py-2 rounded-lg gap-2 font-medium text-sm ${tagTerpilih ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`
+              : `px-4 py-2 rounded-full gap-2 font-medium text-sm ${tagTerpilih ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`
           }
         `}
       >
@@ -94,7 +94,7 @@ export default function TagPicker({
             className={`overflow-hidden whitespace-nowrap ${isCompact ? "text-xs font-semibold" : ""}`}
           >
             <span className={isCompact ? "pl-1.5 pr-1" : ""}>
-              {tagTerpilih ? tagTerpilih : "Pilih Tag"}
+              {tagTerpilih ? tagTerpilih : "Tag"}
             </span>
           </span>
         </div>
