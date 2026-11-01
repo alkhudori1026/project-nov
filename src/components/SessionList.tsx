@@ -1,7 +1,7 @@
 import { useState } from "react";
 import IconButton from "./IconButon";
-import DurationPicker from "./DurationPicker";
-import TagPicker from "./TagPicker";
+import TaskList from "./TaskList";
+import ReflectionList from "./ReflectionList"; // Sekalian kita gunakan untuk refleksi!
 import { Check, X, Pencil, Trash2 } from "lucide-react";
 
 // (Pastikan interface Sesi, Tugas, Refleksi di-import atau didefinisikan di sini)
@@ -118,124 +118,52 @@ export default function ItemSesi({
           </div>
           <div className="flex flex-col md:flex-row gap-3 ">
             {/* --- AREA EDIT TUGAS --- */}
+            {/* --- AREA EDIT TUGAS (Versi Ramping) --- */}
             <div className="flex flex-col gap-2 flex-1 min-w-0">
               <h3 className="text-[10px] font-bold text-blue-800/50 uppercase tracking-wider ml-1">
                 Edit Tugas
               </h3>
               {draft.tugas.map((t) => (
-                <div
+                <TaskList
                   key={t.id}
-                  className="flex flex-wrap justify-end gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
-                >
-                  <input
-                    type="text"
-                    value={t.nama}
-                    onChange={(e) => {
-                      // Memanipulasi array di dalam objek Kotak Pasir
-                      const newTugas = draft.tugas.map((x) =>
-                        x.id === t.id ? { ...x, nama: e.target.value } : x,
-                      );
-                      setDraft({
-                        ...draft,
-                        tugas: newTugas,
-                      });
-                    }}
-                    className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-blue-100 min-w-[200px]"
-                  />
-                  <div className="flex gap-1 shrink-0">
-                    <DurationPicker
-                      isCompact
-                      durasiTerpilih={t.durasi}
-                      onPilihDurasi={(val) => {
-                        const newTugas = draft.tugas.map((x) =>
-                          x.id === t.id ? { ...x, durasi: val } : x,
-                        );
-                        setDraft({
-                          ...draft,
-                          tugas: newTugas,
-                        });
-                      }}
-                    />
-                    <TagPicker
-                      isCompact
-                      daftarTag={daftarTagGlobal}
-                      tagTerpilih={t.tag}
-                      onPilihTag={(val) => {
-                        const newTugas = draft.tugas.map((x) =>
-                          x.id === t.id ? { ...x, tag: val } : x,
-                        );
-                        setDraft({
-                          ...draft,
-                          tugas: newTugas,
-                        });
-                      }}
-                      onBuatTagBaru={(val) => {
-                        onBuatTagBaru(val);
-                        const newTugas = draft.tugas.map((x) =>
-                          x.id === t.id ? { ...x, tag: val } : x,
-                        );
-                        setDraft({
-                          ...draft,
-                          tugas: newTugas,
-                        });
-                      }}
-                    />
-                    <IconButton
-                      icon={Trash2}
-                      onClick={() => {
-                        const newTugas = draft.tugas.filter(
-                          (x) => x.id !== t.id,
-                        );
-                        setDraft({
-                          ...draft,
-                          tugas: newTugas,
-                        });
-                      }}
-                      className="w-8 h-8 !text-red-400 hover:!bg-red-50 ml-1"
-                    />
-                  </div>
-                </div>
+                  tugas={t}
+                  daftarTagGlobal={daftarTagGlobal}
+                  onSimpan={(tugasBaru) => {
+                    // Perbarui HANYA data draf lokal di Kotak Pasir
+                    const tugasUpdate = draft.tugas.map((x) =>
+                      x.id === tugasBaru.id ? tugasBaru : x,
+                    );
+                    setDraft({ ...draft, tugas: tugasUpdate });
+                  }}
+                  onHapus={(id) => {
+                    const tugasSisa = draft.tugas.filter((x) => x.id !== id);
+                    setDraft({ ...draft, tugas: tugasSisa });
+                  }}
+                  onBuatTagBaru={onBuatTagBaru} // Teruskan kabel telepon ke Direktur
+                />
               ))}
             </div>
 
-            {/* --- AREA EDIT REFLEKSI --- */}
+            {/* --- AREA EDIT REFLEKSI (Versi Ramping) --- */}
             <div className="flex flex-col gap-2 flex-1 min-w-0">
               <h3 className="text-[10px] font-bold text-blue-800/50 uppercase tracking-wider ml-1">
                 Edit Refleksi
               </h3>
               {draft.refleksi.map((r) => (
-                <div
+                <ReflectionList
                   key={r.id}
-                  className="flex gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
-                >
-                  <input
-                    type="text"
-                    value={r.teks}
-                    onChange={(e) => {
-                      const newRef = draft.refleksi.map((x) =>
-                        x.id === r.id ? { ...x, teks: e.target.value } : x,
-                      );
-                      setDraft({
-                        ...draft,
-                        refleksi: newRef,
-                      });
-                    }}
-                    className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-blue-100"
-                  />
-                  <IconButton
-                    icon={Trash2}
-                    onClick={() => {
-                      const newRef = draft.refleksi.filter(
-                        (x) => x.id !== r.id,
-                      );
-                      setDraft({
-                        ...draft,
-                        refleksi: newRef,
-                      });
-                    }}
-                    className="w-8 h-8 !text-red-400 hover:!bg-red-50 shrink-0"
-                  />
-                </div>
+                  refleksi={r}
+                  onSimpan={(refleksiBaru) => {
+                    const refUpdate = draft.refleksi.map((x) =>
+                      x.id === refleksiBaru.id ? refleksiBaru : x,
+                    );
+                    setDraft({ ...draft, refleksi: refUpdate });
+                  }}
+                  onHapus={(id) => {
+                    const refSisa = draft.refleksi.filter((x) => x.id !== id);
+                    setDraft({ ...draft, refleksi: refSisa });
+                  }}
+                />
               ))}
             </div>
           </div>

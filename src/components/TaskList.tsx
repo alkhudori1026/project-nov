@@ -55,7 +55,7 @@ export default function TaskItem({
   // ==========================
   if (isEditing) {
     return (
-      <div className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-visible z-20">
+      <div className="group relative flex justify-between items-center w-full bg-white rounded-r-md pl-4 pr-3 py-2 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-visible z-30">
         <div className="flex flex-wrap items-center justify-end w-full gap-2">
           <div className="flex shrink-0 gap-1 w-16 ">
             <IconButton
