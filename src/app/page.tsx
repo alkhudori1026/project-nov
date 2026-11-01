@@ -376,7 +376,7 @@ export default function Home() {
                           {draftEditSesi.tugas.map((t) => (
                             <div
                               key={t.id}
-                              className="flex flex-wrap md:flex-nowrap gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
+                              className="flex flex-wrap justify-end gap-2 items-center bg-white p-2 rounded-xl border border-blue-100 shadow-sm"
                             >
                               <input
                                 type="text"
@@ -396,7 +396,7 @@ export default function Home() {
                                 }}
                                 className="flex-1 text-sm font-medium text-slate-700 outline-none bg-slate-50 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-blue-100 min-w-[200px]"
                               />
-                              <div className="flex gap-1 shrink-0 ml-auto md:ml-0">
+                              <div className="flex gap-1 shrink-0">
                                 <DurationPicker
                                   isCompact
                                   durasiTerpilih={t.durasi}
