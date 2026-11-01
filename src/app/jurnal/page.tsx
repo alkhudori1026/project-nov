@@ -39,8 +39,8 @@ export default function Jurnals() {
 
   const [riwayatSesi, setRiwayatSesi] = useState<Sesi[]>([]);
   const [daftarTagGlobal, setDaftarTagGlobal] = useState<string[]>([]);
-  const [isMounted, setIsMounted] = useState(false); // Indikator bahwa halaman sudah mendarat di browser
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMounted, setIsMounted] = useState(false); // Indikator bahwa halaman sudah mendarat di browser
 
   // ====================================================
   // 1. PEKERJA BONGKAR AWAL (Hanya jalan setelah mendarat di Browser)
@@ -58,7 +58,7 @@ export default function Jurnals() {
       // Jika laci tag kosong (pengguna baru), berikan tag bawaan
       setDaftarTagGlobal(["Education", "Skills", "Hobby"]);
     }
-  }, []);
+  }, []); //kalau depedensinya kosong berarti cman dijalankan sekali saat browser buka halman
 
   // ====================================================
   // 2. PEKERJA SIMPAN SESI (Jalan setiap riwayatSesi berubah)
@@ -79,7 +79,7 @@ export default function Jurnals() {
         JSON.stringify(daftarTagGlobal),
       );
     }
-  }, [daftarTagGlobal, isMounted]);
+  }, [daftarTagGlobal, isMounted]); // kalau depndensinya diisi, berarti jadi semacam sensor. jika array di dalam dependensi itu berubah, lakukan useEffect
 
   const tanganiBuatTagBaru = (tagBaru: string) => {
     setDaftarTagGlobal([...daftarTagGlobal, tagBaru]); // Tambahkan tag baru ke daftar memori global
