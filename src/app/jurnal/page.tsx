@@ -188,6 +188,10 @@ export default function Jurnals() {
     // atau membiarkannya sebagai default.
   };
 
+  const riwayatSesiTerurut = [...riwayatSesi].sort((a, b) =>
+    a.waktuMulai.localeCompare(b.waktuMulai),
+  );
+
   const tanganiHapusSesiLengkap = (id: string) => {
     setRiwayatSesi(riwayatSesi.filter((s) => s.id !== id));
   };
@@ -220,71 +224,9 @@ export default function Jurnals() {
           </header>
 
           <div className="p-4 pt-4 flex flex-col gap-8">
-            {/* =========================================
-          1. LOG SESI TERSIMPAN (HISTORY) 
-          Desain dibuat lebih solid dan "read-only"
-      ========================================= */}
-            <section className="flex flex-col gap-4 opacity-75 hover:opacity-100 transition-opacity">
-              {/* Pembatas Waktu & Tag (Statis untuk history) */}
-              <div className="flex items-center gap-3">
-                <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full tracking-wide">
-                  08.00 - 10.00
-                </p>
-                <div className="flex-1 border-t-2 border-dashed border-slate-200" />
-                <div className="flex gap-1.5 shrink-0">
-                  <span className="px-2.5 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-md">
-                    Education
-                  </span>
-                  <span className="px-2.5 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-md">
-                    Skills
-                  </span>
-                </div>
-              </div>
-
-              {/* Konten Log Selesai */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Tugas Selesai
-                  </h3>
-                  <div className="flex justify-between items-center border-l-2 border-blue-400 pl-3">
-                    <p className="font-medium text-sm text-slate-700">
-                      Belajar UTBK
-                    </p>
-                    <span className="text-xs text-slate-500 font-medium">
-                      1 jam
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-l-2 border-blue-400 pl-3">
-                    <p className="font-medium text-sm text-slate-700">
-                      Lanjut Projek Koding
-                    </p>
-                    <span className="text-xs text-slate-500 font-medium">
-                      1 jam
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Refleksi
-                  </h3>
-                  <p className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3">
-                    Seru belajar sama temen
-                  </p>
-                  <p className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3">
-                    Pusing nyari soal-soal latihan
-                  </p>
-                  <p className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3">
-                    Bingung sama konsep logika
-                  </p>
-                </div>
-              </div>
-            </section>
-            {/* =========================================
-    1. LOG SESI TERSIMPAN (HISTORY) 
-========================================= */}
+            {/*1. LOG SESI TERSIMPAN (HISTORY) */}
             <section id="log-sesi" className="flex flex-col gap-6">
-              {riwayatSesi.map((sesi) => (
+              {riwayatSesiTerurut.map((sesi) => (
                 <div
                   key={sesi.id}
                   className="flex flex-col gap-4 opacity-80 hover:opacity-100 transition-opacity mb-6"
@@ -294,7 +236,6 @@ export default function Jurnals() {
                     sesi={sesi}
                     daftarTagGlobal={daftarTagGlobal}
                     onSimpan={(sesiDiperbarui) => {
-                      // Direktur menimpa sesi lama dengan sesi yang baru diedit
                       setRiwayatSesi(
                         riwayatSesi.map((s) =>
                           s.id === sesiDiperbarui.id ? sesiDiperbarui : s,
@@ -304,47 +245,6 @@ export default function Jurnals() {
                     onHapus={tanganiHapusSesiLengkap}
                     onBuatTagBaru={tanganiBuatTagBaru}
                   />
-                  {/* Konten Log Selesai (Render Dinamis) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Kolom Tugas */}
-                    {sesi.tugas.length > 0 && (
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-wrap mb-1">
-                          Tugas Selesai
-                        </h3>
-                        {sesi.tugas.map((t) => (
-                          <div
-                            key={t.id}
-                            className="flex justify-between items-center border-l-2 border-blue-400 pl-3 gap-2"
-                          >
-                            <p className="font-medium text-sm text-slate-700 break-all">
-                              {t.nama}
-                            </p>
-                            <span className="text-xs text-slate-500 font-medium shrink-0">
-                              {t.durasi}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Kolom Refleksi */}
-                    {sesi.refleksi.length > 0 && (
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Refleksi
-                        </h3>
-                        {sesi.refleksi.map((r) => (
-                          <p
-                            key={r.id}
-                            className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3"
-                          >
-                            {r.teks}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               ))}
             </section>

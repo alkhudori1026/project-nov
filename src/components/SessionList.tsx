@@ -245,6 +245,47 @@ export default function ItemSesi({
               ))}
             </div>
           </div>
+          {/* Konten Log Selesai (Render Dinamis) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Kolom Tugas */}
+            {sesi.tugas.length > 0 && (
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-wrap mb-1">
+                  Tugas Selesai
+                </h3>
+                {sesi.tugas.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between items-center border-l-2 border-blue-400 pl-3 gap-2"
+                  >
+                    <p className="font-medium text-sm text-slate-700 break-all">
+                      {t.nama}
+                    </p>
+                    <span className="text-xs text-slate-500 font-medium shrink-0">
+                      {t.durasi}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Kolom Refleksi */}
+            {sesi.refleksi.length > 0 && (
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Refleksi
+                </h3>
+                {sesi.refleksi.map((r) => (
+                  <p
+                    key={r.id}
+                    className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3"
+                  >
+                    {r.teks}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
