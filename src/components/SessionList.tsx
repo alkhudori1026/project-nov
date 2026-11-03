@@ -16,13 +16,13 @@ interface Tugas {
 
 interface Refleksi {
   id: string;
-  teks: string;
+  text: string;
 }
 
 interface Sesi {
   id: string;
-  waktuMulai: string;
-  waktuSelesai: string;
+  startingTime: string;
+  finishingTime: string;
   tagUnik: string[];
   tugas: Tugas[];
   refleksi: Refleksi[];
@@ -30,7 +30,7 @@ interface Sesi {
 
 interface ItemSesiProps {
   sesi: Sesi;
-  daftarTagGlobal: string[];
+  tagStorage: string[];
   onSimpan: (sesiBaru: Sesi) => void;
   onHapus: (id: string) => void;
   onBuatTagBaru: (tag: string) => void;
@@ -38,7 +38,7 @@ interface ItemSesiProps {
 
 export default function ItemSesi({
   sesi,
-  daftarTagGlobal,
+  tagStorage,
   onSimpan,
   onHapus,
   onBuatTagBaru,
@@ -78,11 +78,11 @@ export default function ItemSesi({
             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-blue-300 shadow-sm">
               <input
                 type="time"
-                value={draft.waktuMulai}
+                value={draft.startingTime}
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    waktuMulai: e.target.value,
+                    startingTime: e.target.value,
                   })
                 }
                 className="text-sm font-bold outline-none bg-transparent text-slate-700"
@@ -90,11 +90,11 @@ export default function ItemSesi({
               <span className="text-slate-400 font-medium">→</span>
               <input
                 type="time"
-                value={draft.waktuSelesai}
+                value={draft.finishingTime}
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    waktuSelesai: e.target.value,
+                    finishingTime: e.target.value,
                   })
                 }
                 className="text-sm font-bold outline-none bg-transparent text-slate-700"
@@ -127,7 +127,7 @@ export default function ItemSesi({
                 <TaskList
                   key={t.id}
                   tugas={t}
-                  daftarTagGlobal={daftarTagGlobal}
+                  tagStorage={tagStorage}
                   onSimpan={(tugasBaru) => {
                     // Perbarui HANYA data draf lokal di Kotak Pasir
                     const tugasUpdate = draft.tugas.map((x) =>
@@ -228,7 +228,7 @@ export default function ItemSesi({
 
                   {/* Teks Waktu Sesi (Menyusut/Bergeser sesuai animasi hover-mu) */}
                   <p className="whitespace-nowrap shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 -ml-2 group-hover:ml-0 delay-300 transition-all duration-300 rounded-full tracking-wide">
-                    {sesi.waktuMulai} - {sesi.waktuSelesai}
+                    {sesi.startingTime} - {sesi.finishingTime}
                   </p>
                 </div>
               )}
@@ -280,7 +280,7 @@ export default function ItemSesi({
                     key={r.id}
                     className="text-sm text-slate-600 border-l-2 border-slate-300 pl-3"
                   >
-                    {r.teks}
+                    {r.text}
                   </p>
                 ))}
               </div>

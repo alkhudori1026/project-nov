@@ -8,7 +8,14 @@ import TaskList from "@/components/TaskList";
 import ReflectionList from "@/components/ReflectionList";
 import SessionList from "@/components/SessionList";
 import ToggleButton from "@/components/ToggleButton";
-import { CircleStar, ListPlus, PencilSparkles, PenLine } from "lucide-react";
+import EvaluationLog from "@/components/EvaluationLog";
+import {
+  CircleStar,
+  ListPlus,
+  PencilSparkles,
+  PenLine,
+  Trash2,
+} from "lucide-react";
 
 // 1. Kontrak Tipe Data: Bentuk pasti dari satu objek tugas
 interface Tugas {
@@ -56,12 +63,47 @@ interface RestingActivity {
   name: string;
 }
 
+interface EvaluasiHarian {
+  id: string;
+  flowStates: FlowState[];
+  crashTime: string; // Data tunggal
+  missedTasks: MissTask[];
+  distractions: Distraction[];
+  sleepDuration: string; // Data tunggal (sebelumnya inputSleepTag/sleepTime)
+  morningFeeling: string; // Data tunggal
+  restingActivities: RestingActivity[];
+}
+
 import { useState, useEffect } from "react";
 
 export default function Jurnals() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [evaluateMode, setEvaluateMode] = useState(false);
   const [activeTag, setActiveTag] = useState("");
+
+  const [flowStateList, setFlowStateList] = useState<FlowState[]>([]);
+  const [inputStartingFocus, setInputStartingFocus] = useState("");
+  const [inputFinishingFocus, setInputFinishingFocus] = useState("");
+  const [crashTime, setCrashTime] = useState("");
+
+  const [missTaskList, setMissTaskList] = useState<MissTask[]>([]);
+  const [inputMissTask, setInputMissTask] = useState("");
+
+  const [distractions, setDistractions] = useState<Distraction[]>([]);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+
+  const [inputDistraction, setInputDistraction] = useState("");
+  const [inputStartTime, setInputStartTime] = useState("");
+  const [inputEndTime, setInputEndTime] = useState("");
+
+  const [restingActivities, setRestingActivities] = useState<RestingActivity[]>(
+    [],
+  );
+  const [inputRestingActivity, setInputRestingActivity] = useState("");
+
+  const [riwayatEvaluasi, setRiwayatEvaluasi] = useState<EvaluasiHarian[]>([]);
+  const [idEditEvaluasi, setIdEditEvaluasi] = useState<string | null>(null); // Memori untuk fitur edit
 
   const [sessionHistory, setSessionHistory] = useState<Sesi[]>([]);
   const [tagStorage, setTagStorage] = useState<string[]>([]);
@@ -76,7 +118,9 @@ export default function Jurnals() {
 
     const callSessionStorage = localStorage.getItem("jurnal_sessionHistory");
     const callTagStorage = localStorage.getItem("jurnal_tagStorage");
+    const callEvaluasi = localStorage.getItem("jurnal_riwayatEvaluasi");
 
+    if (callEvaluasi) setRiwayatEvaluasi(JSON.parse(callEvaluasi));
     if (callSessionStorage) setSessionHistory(JSON.parse(callSessionStorage));
     if (callTagStorage) {
       setTagStorage(JSON.parse(callTagStorage));
@@ -85,6 +129,28 @@ export default function Jurnals() {
       setTagStorage(["Education", "Skills", "Hobby"]);
     }
   }, []); //kalau depedensinya kosong berarti cman dijalankan sekali saat browser buka halman
+
+  useEffect(() => {
+    setIsMounted(true);
+
+    const callSessionStorage = localStorage.getItem("jurnal_sessionHistory");
+    const callTagStorage = localStorage.getItem("jurnal_tagStorage");
+
+    // Tarik data memori evaluasi dari laci
+    const callFlowState = localStorage.getItem("jurnal_flowState");
+    const callMissTask = localStorage.getItem("jurnal_missTask");
+    const callDistraction = localStorage.getItem("jurnal_distraction");
+    const callResting = localStorage.getItem("jurnal_restingActivity");
+
+    if (callSessionStorage) setSessionHistory(JSON.parse(callSessionStorage));
+    if (callTagStorage) setTagStorage(JSON.parse(callTagStorage));
+
+    // Terjemahkan data evaluasi kembali menjadi array objek
+    if (callFlowState) setFlowStateList(JSON.parse(callFlowState));
+    if (callMissTask) setMissTaskList(JSON.parse(callMissTask));
+    if (callDistraction) setDistractions(JSON.parse(callDistraction));
+    if (callResting) setRestingActivities(JSON.parse(callResting));
+  }, []);
 
   // ====================================================
   // 2. PEKERJA SIMPAN SESI (Jalan setiap sessionHistory berubah)
@@ -106,6 +172,48 @@ export default function Jurnals() {
       localStorage.setItem("jurnal_tagStorage", JSON.stringify(tagStorage));
     }
   }, [tagStorage, isMounted]); // kalau depndensinya diisi, berarti jadi semacam sensor. jika array di dalam dependensi itu berubah, lakukan useEffect
+
+  // ====================================================
+  // 4. PEKERJA SIMPAN EVALUASI (Jalan jika ada perubahan pada data evaluasi)
+  // ====================================================
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem("jurnal_flowState", JSON.stringify(flowStateList));
+      localStorage.setItem("jurnal_missTask", JSON.stringify(missTaskList));
+      localStorage.setItem("jurnal_distraction", JSON.stringify(distractions));
+      localStorage.setItem(
+        "jurnal_restingActivity",
+        JSON.stringify(restingActivities),
+      );
+    }
+  }, [flowStateList, missTaskList, distractions, restingActivities, isMounted]);
+
+  // 2. Buat Pekerja Simpan khusus untuk Laporan Evaluasi:
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem(
+        "jurnal_riwayatEvaluasi",
+        JSON.stringify(riwayatEvaluasi),
+      );
+    }
+  }, [riwayatEvaluasi, isMounted]);
+
+  const tanganiEditEvaluasi = (laporanLama: EvaluasiHarian) => {
+    // 1. Sebar data dari laporan lama kembali ke form input (draf)
+    setFlowStateList(laporanLama.flowStates);
+    setCrashTime(laporanLama.crashTime);
+    setMissTaskList(laporanLama.missedTasks);
+    setDistractions(laporanLama.distractions);
+    setSleepTime(laporanLama.sleepDuration);
+    setInputSleepTag(laporanLama.morningFeeling);
+    setRestingActivities(laporanLama.restingActivities);
+
+    // 2. Tandai ID yang sedang diedit
+    setIdEditEvaluasi(laporanLama.id);
+
+    // 3. Buka form
+    setEvaluateMode(true);
+  };
 
   const addNewTag = (newTag: string) => {
     setTagStorage([...tagStorage, newTag]); // Tambahkan tag baru ke daftar memori global
@@ -218,11 +326,6 @@ export default function Jurnals() {
     setSessionHistory(sessionHistory.filter((s) => s.id !== id));
   };
 
-  const [flowStateList, setFlowStateList] = useState<FlowState[]>([]);
-  const [inputStartingFocus, setInputStartingFocus] = useState("");
-  const [inputFinishingFocus, setInputFinishingFocus] = useState("");
-  const [crashTime, setCrashTime] = useState("");
-
   const addFlowStateTime = () => {
     if (!inputStartingFocus.trim() || !inputFinishingFocus.trim()) return;
 
@@ -240,9 +343,6 @@ export default function Jurnals() {
     setInputStartingFocus("");
     setInputFinishingFocus("");
   };
-
-  const [inputMissTask, setInputMissTask] = useState("");
-  const [missTaskList, setMissTaskList] = useState<MissTask[]>([]);
 
   const addMissTask = () => {
     // A. Validasi: Jangan proses jika nama tugas kosong
@@ -263,14 +363,6 @@ export default function Jurnals() {
     setInputTag("");
   };
 
-  const [listDistraction, setListDistraction] = useState<Distraction[]>([]);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-
-  const [inputDistraction, setInputDistraction] = useState("");
-  const [inputStartTime, setInputStartTime] = useState("");
-  const [inputEndTime, setInputEndTime] = useState("");
-
   const addDistraction = () => {
     // A. Validasi: Jangan proses jika nama tugas kosong
     if (!inputDistraction.trim()) return;
@@ -279,12 +371,12 @@ export default function Jurnals() {
     const distraction: Distraction = {
       id: crypto.randomUUID(), // Menghasilkan ID unik standar industri
       distraction: inputDistraction,
-      start: inputStartTime || "Tanpa Tag", // Fallback jika lupa diisi
-      end: inputEndTime,
+      start: inputStartTime || "lama", // Fallback jika lupa diisi
+      end: inputEndTime || "pokoknya",
     };
 
     // C. Pindahkan ke Gudang (Gabungkan dengan data yang sudah ada)
-    setListDistraction([...listDistraction, distraction]);
+    setDistractions([...distractions, distraction]);
 
     // D. Bersihkan Ban Berjalan (Reset form ke kosong)
     setInputDistraction("");
@@ -310,11 +402,6 @@ export default function Jurnals() {
     setInputSleepTag(newTag); // Langsung jadikan tag baru tersebut sebagai yang terpilih
   };
 
-  const [listRestingActivity, setListRestingActivity] = useState<
-    RestingActivity[]
-  >([]);
-  const [inputRestingActivity, setInputRestingActivity] = useState("");
-
   const addRestingActivity = () => {
     // A. Validasi: Jangan proses jika nama tugas kosong
     if (!inputRestingActivity.trim()) return;
@@ -326,12 +413,52 @@ export default function Jurnals() {
     };
 
     // C. Pindahkan ke Gudang (Gabungkan dengan data yang sudah ada)
-    setListRestingActivity([...listRestingActivity, restingActivity]);
+    setRestingActivities([...restingActivities, restingActivity]);
 
     // D. Bersihkan Ban Berjalan (Reset form ke kosong)
     setInputRestingActivity("");
     setInputStartTime("");
     setInputEndTime("");
+  };
+
+  const bookEvaluation = () => {
+    // 1. Rakit semua data draf menjadi satu objek Laporan Utuh
+    const laporanBaru: EvaluasiHarian = {
+      id: idEditEvaluasi ? idEditEvaluasi : crypto.randomUUID(),
+      flowStates: [...flowStateList],
+      crashTime: crashTime,
+      missedTasks: [...missTaskList],
+      distractions: [...distractions],
+      sleepDuration: sleepTime, // Asumsi kamu punya state sleepTime
+      morningFeeling: inputSleepTag, // Asumsi ini menyimpan perasaan pagi
+      restingActivities: [...restingActivities],
+    };
+
+    // 2. Kirim ke Gudang
+    if (idEditEvaluasi) {
+      // Jika sedang mode edit, timpa laporan lama dengan yang baru
+      setRiwayatEvaluasi(
+        riwayatEvaluasi.map((ev) =>
+          ev.id === idEditEvaluasi ? laporanBaru : ev,
+        ),
+      );
+    } else {
+      // Jika laporan baru, tambahkan ke urutan atas
+      setRiwayatEvaluasi([laporanBaru, ...riwayatEvaluasi]);
+    }
+
+    // 3. Bersihkan Meja Kerja (Reset Draf)
+    setFlowStateList([]);
+    setCrashTime("");
+    setMissTaskList([]);
+    setDistractions([]);
+    setSleepTime("");
+    setInputSleepTag("");
+    setRestingActivities([]);
+
+    // 4. Tutup Mode Form, matikan status edit
+    setEvaluateMode(false);
+    setIdEditEvaluasi(null);
   };
 
   if (!isMounted) return null;
@@ -385,6 +512,23 @@ export default function Jurnals() {
                   />
                 </div>
               ))}
+              {riwayatEvaluasi.length > 0 && !evaluateMode && (
+                <div className="mt-8 border-t-2 border-dashed border-slate-200 pt-8">
+                  <h2 className="font-bold text-lg text-slate-700 mb-6">
+                    Ringkasan Evaluasi Harian
+                  </h2>
+
+                  <div className="flex flex-col gap-6">
+                    {riwayatEvaluasi.map((laporan) => (
+                      <EvaluationLog
+                        key={laporan.id}
+                        evaluasi={laporan} // Memberikan 1 laporan spesifik
+                        onEdit={tanganiEditEvaluasi} // Memberikan akses ke fungsi pembongkar draf
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
             {/* =========================================
           2. AREA INPUT SESI AKTIF (DRAFT)
@@ -418,6 +562,28 @@ export default function Jurnals() {
                         <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
                           Kapan Fokusku meningkat / memasuki flow-state?
                         </h2>
+                        {/* Draf Puncak Fokus */}
+                        {flowStateList.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex justify-between items-center bg-white border border-blue-100 p-2 rounded-xl shadow-sm"
+                          >
+                            <div className="flex gap-2 items-center">
+                              <span className="text-sm font-bold text-blue-700">
+                                {item.start} - {item.end}
+                              </span>
+                            </div>
+                            <IconButton
+                              icon={Trash2}
+                              onClick={() =>
+                                setFlowStateList(
+                                  flowStateList.filter((x) => x.id !== item.id),
+                                )
+                              }
+                              className="w-8 h-8 !text-red-400 hover:!bg-red-50"
+                            />
+                          </div>
+                        ))}
                         <div className="bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between items-center w-full gap-2">
                           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 focus-within:border-slate-200 focus-within:ring-1 focus-within:ring-blue-50 transition-all">
                             <input
@@ -467,26 +633,30 @@ export default function Jurnals() {
                         <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
                           Tugas apa yang tertunda/tergeser?
                         </h2>
-                        {missTaskList.map((tugas) => (
-                          <TaskList
-                            key={tugas.id}
-                            tugas={tugas}
-                            tagStorage={tagStorage}
-                            // 1. Saat pekerja melapor tugas selesai diedit:
-                            onSimpan={(tugasYangDiedit) => {
-                              setMissTaskList(
-                                missTaskList.map((t) =>
-                                  t.id === tugasYangDiedit.id
-                                    ? tugasYangDiedit
-                                    : t,
-                                ),
-                              );
-                            }}
-                            // 2. Saat pekerja menekan tombol tong sampah:
-                            onHapus={removeTask}
-                            // 3. Saat pekerja mengetik tag baru di dalam TagPicker:
-                            onBuatTagBaru={addNewTag}
-                          />
+                        {/* Draf Tugas Tertunda */}
+                        {missTaskList.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex justify-between items-center bg-white border border-red-100 p-2 rounded-xl shadow-sm"
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium text-slate-700 truncate">
+                                {item.task}
+                              </span>
+                              <span className="text-[10px] font-bold text-red-500 uppercase">
+                                {item.tag}
+                              </span>
+                            </div>
+                            <IconButton
+                              icon={Trash2}
+                              onClick={() =>
+                                setMissTaskList(
+                                  missTaskList.filter((x) => x.id !== item.id),
+                                )
+                              }
+                              className="w-8 h-8 !text-red-400 hover:!bg-red-50 shrink-0"
+                            />
+                          </div>
                         ))}
                         <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between items-center w-full gap-2">
                           <div className="flex flex-1 items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 focus-within:border-slate-200 focus-within:ring-1 focus-within:ring-blue-50 transition-all">
@@ -522,7 +692,31 @@ export default function Jurnals() {
                         <h2 className="border-b border-slate-100 w-full text-left font-bold text-xs text-slate-400 pb-2 uppercase tracking-wider">
                           Apa sumber distraksiku hari ini?
                         </h2>
-
+                        {/* Draf Distraksi */}
+                        {distractions.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex justify-between items-center bg-white border border-amber-100 p-2 rounded-xl shadow-sm"
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium text-slate-700 truncate">
+                                {item.distraction}
+                              </span>
+                              <span className="text-[10px] font-bold text-amber-600">
+                                {item.start} - {item.end}
+                              </span>
+                            </div>
+                            <IconButton
+                              icon={Trash2}
+                              onClick={() =>
+                                setDistractions(
+                                  distractions.filter((x) => x.id !== item.id),
+                                )
+                              }
+                              className="w-8 h-8 !text-red-400 hover:!bg-red-50 shrink-0"
+                            />
+                          </div>
+                        ))}
                         <div className=" bg-slate-50 p-2 rounded-2xl flex flex-wrap justify-between items-center w-full gap-2">
                           <div className="flex flex-1 items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 focus-within:border-slate-200 focus-within:ring-1 focus-within:ring-blue-50 transition-all">
                             <input
@@ -538,8 +732,10 @@ export default function Jurnals() {
                           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 focus-within:border-slate-200 focus-within:ring-1 focus-within:ring-blue-50 transition-all">
                             <input
                               type="time"
-                              value={startTime}
-                              onChange={(e) => setStartTime(e.target.value)}
+                              value={inputStartTime}
+                              onChange={(e) =>
+                                setInputStartTime(e.target.value)
+                              }
                               className="outline-none bg-transparent text-sm font-bold text-slate-600 cursor-pointer"
                             />
                             <span className="text-slate-300 text-sm font-medium">
@@ -547,8 +743,8 @@ export default function Jurnals() {
                             </span>
                             <input
                               type="time"
-                              value={endTime}
-                              onChange={(e) => setEndTime(e.target.value)}
+                              value={inputEndTime}
+                              onChange={(e) => setInputEndTime(e.target.value)}
                               className="outline-none bg-transparent text-sm font-bold text-slate-600 cursor-pointer"
                             />
                           </div>
@@ -573,8 +769,8 @@ export default function Jurnals() {
                             </h3>
                             <div className="shrink-0">
                               <DurationPicker
-                                onPilihDurasi={setInputSleepTag}
-                                durasiTerpilih={inputSleepTag}
+                                onPilihDurasi={setSleepTime}
+                                durasiTerpilih={sleepTime}
                               />
                             </div>
                           </div>
@@ -598,6 +794,28 @@ export default function Jurnals() {
                             <h3 className="text-slate-500 font-medium  w-full text-left pb-4">
                               Hal apa yang membuat energi terisi ulang?
                             </h3>
+                            {/* Draf Aktivitas Pemulihan */}
+                            {restingActivities.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex justify-between items-center bg-white border border-emerald-100 p-2 rounded-xl shadow-sm"
+                              >
+                                <span className="text-sm font-medium text-slate-700 truncate">
+                                  {item.name}
+                                </span>
+                                <IconButton
+                                  icon={Trash2}
+                                  onClick={() =>
+                                    setRestingActivities(
+                                      restingActivities.filter(
+                                        (x) => x.id !== item.id,
+                                      ),
+                                    )
+                                  }
+                                  className="w-8 h-8 !text-red-400 hover:!bg-red-50 shrink-0"
+                                />
+                              </div>
+                            ))}
                             <div className="flex items-center justify-between w-full gap-2">
                               <div className="flex flex-1 min-w-0 items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 focus-within:border-slate-200 focus-within:ring-1 focus-within:ring-blue-50 transition-all">
                                 <input
@@ -624,9 +842,14 @@ export default function Jurnals() {
                     </div>
                     {/* Tombol Eksekusi Final */}
                     <button
-                      onClick={bookSession}
+                      onClick={bookEvaluation} // (Gunakan fungsi transaksional yang baru)
                       disabled={
-                        taskList.length === 0 && reflectionList.length === 0
+                        flowStateList.length === 0 ||
+                        missTaskList.length === 0 ||
+                        distractions.length === 0 ||
+                        restingActivities.length === 0 ||
+                        !crashTime || // String kosong bernilai false, tanda seru membalikkannya jadi true
+                        !inputSleepTag // (Atau gunakan sleepTime, tergantung variabel utama tidurmu)
                       }
                       className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold rounded-2xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
                     >
@@ -670,7 +893,7 @@ export default function Jurnals() {
                           <TaskList
                             key={tugas.id}
                             tugas={tugas}
-                            daftarTagGlobal={tagStorage}
+                            tagStorage={tagStorage}
                             // 1. Saat pekerja melapor tugas selesai diedit:
                             onSimpan={(tugasYangDiedit) => {
                               setTaskList(

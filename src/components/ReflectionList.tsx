@@ -5,7 +5,7 @@ import { Check, X, Pencil, Trash2 } from "lucide-react";
 // Kontrak Data (Sama dengan yang di page.tsx)
 interface Refleksi {
   id: string;
-  teks: string;
+  text: string;
 }
 
 // Kontrak Props (Kabel komunikasi ke Manajer/page.tsx)
@@ -22,13 +22,13 @@ export default function ReflectionList({
 }: ReflectionListProps) {
   // State LOKAL: Hanya Pekerja ini yang tahu dia sedang diedit atau tidak
   const [isEditing, setIsEditing] = useState(false);
-  const [teksDraft, setTeksDraft] = useState(refleksi.teks);
+  const [teksDraft, setTeksDraft] = useState(refleksi.text);
 
   const tanganiSimpan = () => {
     if (!teksDraft.trim()) return;
 
     // Telepon Manajer (page.tsx) dan berikan data yang sudah diperbarui
-    onSimpan({ ...refleksi, teks: teksDraft });
+    onSimpan({ ...refleksi, text: teksDraft });
     setIsEditing(false); // Matikan mode edit
   };
 
@@ -48,7 +48,7 @@ export default function ReflectionList({
             onKeyDown={(e) => {
               if (e.key === "Enter") tanganiSimpan();
               if (e.key === "Escape") {
-                setTeksDraft(refleksi.teks); // Batal edit, kembalikan teks asli
+                setTeksDraft(refleksi.text); // Batal edit, kembalikan teks asli
                 setIsEditing(false);
               }
             }}
@@ -63,7 +63,7 @@ export default function ReflectionList({
             <IconButton
               icon={X}
               onClick={() => {
-                setTeksDraft(refleksi.teks); // Batal edit
+                setTeksDraft(refleksi.text); // Batal edit
                 setIsEditing(false);
               }}
               className="w-8 h-8 !text-slate-400 hover:!bg-slate-100"
@@ -76,7 +76,7 @@ export default function ReflectionList({
         // ==========================
         <>
           <p className="text-sm text-slate-700 flex-1 min-w-0 truncate">
-            {refleksi.teks}
+            {refleksi.text}
           </p>
           <div className="w-0 opacity-0 overflow-hidden group-hover:w-[4.5rem] group-hover:opacity-100 transition-all duration-300 delay-300 ease-out flex shrink-0 gap-1 ml-2 justify-end">
             <IconButton

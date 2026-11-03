@@ -16,7 +16,7 @@ interface Tugas {
 // Ini mendefinisikan apa saja yang BOLEH dilempar dari parent ke child
 interface ItemTugasProps {
   tugas: Tugas; // Data 1 baris tugas
-  daftarTagGlobal: string[]; // Diperlukan untuk dropdown TagPicker
+  tagStorage: string[]; // Diperlukan untuk dropdown TagPicker
   onSimpan: (tugasBaru: Tugas) => void; // Fungsi melapor saat save
   onHapus: (id: string) => void; // Fungsi melapor saat delete
   onBuatTagBaru: (tagBaru: string) => void; // Melapor jika ada tag baru
@@ -24,7 +24,7 @@ interface ItemTugasProps {
 
 export default function TaskItem({
   tugas,
-  daftarTagGlobal,
+  tagStorage,
   onSimpan,
   onHapus,
   onBuatTagBaru,
@@ -95,7 +95,7 @@ export default function TaskItem({
               isCompact={true}
             />
             <TagPicker
-              daftarTag={daftarTagGlobal}
+              daftarTag={tagStorage}
               tagTerpilih={tagDraft}
               onPilihTag={setTagDraft}
               onBuatTagBaru={(tag) => {
