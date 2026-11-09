@@ -15,6 +15,8 @@ import {
   PencilSparkles,
   PenLine,
   Trash2,
+  ChevronDown,
+  FolderGit2,
 } from "lucide-react";
 
 // 1. Kontrak Tipe Data: Bentuk pasti dari satu objek tugas
@@ -74,10 +76,26 @@ interface EvaluasiHarian {
   restingActivities: RestingActivity[];
 }
 
+interface JurnalHarian {
+  id: string;
+  date: string;
+  title: string;
+  favorite: boolean;
+  sessions: Sesi[];
+  evaluation: EvaluasiHarian | null;
+}
+
+interface FolderBulan {
+  id: string;
+  name: string;
+  pages: JurnalHarian[];
+}
+
 import { useState, useEffect } from "react";
 
 export default function Jurnals() {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [bukaMenuFolder, setBukaMenuFolder] = useState(false);
   const [evaluateMode, setEvaluateMode] = useState(false);
   const [activeTag, setActiveTag] = useState("");
 
@@ -102,11 +120,16 @@ export default function Jurnals() {
   );
   const [inputRestingActivity, setInputRestingActivity] = useState("");
 
-  const [riwayatEvaluasi, setRiwayatEvaluasi] = useState<EvaluasiHarian[]>([]);
   const [idEditEvaluasi, setIdEditEvaluasi] = useState<string | null>(null); // Memori untuk fitur edit
 
-  const [sessionHistory, setSessionHistory] = useState<Sesi[]>([]);
   const [tagStorage, setTagStorage] = useState<string[]>([]);
+
+  // Gudang utama yang menyimpan seluruh folder bulan
+  const [arsipUtama, setArsipUtama] = useState<FolderBulan[]>([]);
+  // Meja kerjamu hari ini (koper yang sedang dibuka)
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [activeJournal, setActiveJournal] = useState<JurnalHarian | null>(null);
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false); // Indikator bahwa halaman sudah mendarat di browser
 
@@ -114,89 +137,48 @@ export default function Jurnals() {
   // 1. PEKERJA BONGKAR AWAL (Hanya jalan setelah mendarat di Browser)
   // ====================================================
   useEffect(() => {
-    setIsMounted(true); // Beritahu sistem bahwa kita aman untuk mengakses localStorage
-
-    const callSessionStorage = localStorage.getItem("jurnal_sessionHistory");
-    const callTagStorage = localStorage.getItem("jurnal_tagStorage");
-    const callEvaluasi = localStorage.getItem("jurnal_riwayatEvaluasi");
-
-    if (callEvaluasi) setRiwayatEvaluasi(JSON.parse(callEvaluasi));
-    if (callSessionStorage) setSessionHistory(JSON.parse(callSessionStorage));
-    if (callTagStorage) {
-      setTagStorage(JSON.parse(callTagStorage));
-    } else {
-      // Jika laci tag kosong (pengguna baru), berikan tag bawaan
-      setTagStorage(["Education", "Skills", "Hobby"]);
-    }
-  }, []); //kalau depedensinya kosong berarti cman dijalankan sekali saat browser buka halman
-
-  useEffect(() => {
     setIsMounted(true);
 
-    const callSessionStorage = localStorage.getItem("jurnal_sessionHistory");
-    const callTagStorage = localStorage.getItem("jurnal_tagStorage");
+    // 1. Tentukan Identitas Hari Ini
+    const hariIni = new Date().toISOString().split("T")[0]; // "2026-11-09"
+    const idBulanIni = hariIni.substring(0, 7); // "2026-11"
 
-    // Tarik data memori evaluasi dari laci
-    const callFlowState = localStorage.getItem("jurnal_flowState");
-    const callMissTask = localStorage.getItem("jurnal_missTask");
-    const callDistraction = localStorage.getItem("jurnal_distraction");
-    const callResting = localStorage.getItem("jurnal_restingActivity");
+    // 2. Ambil Brankas
+    const savedArsip = localStorage.getItem("jurnal_arsipUtama");
+    let arsip: FolderBulan[] = savedArsip ? JSON.parse(savedArsip) : [];
 
-    if (callSessionStorage) setSessionHistory(JSON.parse(callSessionStorage));
-    if (callTagStorage) setTagStorage(JSON.parse(callTagStorage));
+    // 3. Cari Folder (Buat baru jika belum ada)
+    let folderBulanIni = arsip.find((folder) => folder.id === idBulanIni);
+    if (!folderBulanIni) {
+      // Ubah nama bawaan sesuai permintaanmu
+      folderBulanIni = { id: idBulanIni, name: "New Folder", pages: [] };
+      arsip.push(folderBulanIni);
+    }
 
-    // Terjemahkan data evaluasi kembali menjadi array objek
-    if (callFlowState) setFlowStateList(JSON.parse(callFlowState));
-    if (callMissTask) setMissTaskList(JSON.parse(callMissTask));
-    if (callDistraction) setDistractions(JSON.parse(callDistraction));
-    if (callResting) setRestingActivities(JSON.parse(callResting));
+    // 4. Cari Halaman Jurnal (Buat baru jika belum ada)
+    let jurnalHariIni = folderBulanIni.pages.find(
+      (page) => page.date === hariIni,
+    );
+    if (!jurnalHariIni) {
+      jurnalHariIni = {
+        id: crypto.randomUUID(),
+        date: hariIni,
+        title: "", // Biarkan kosong, nanti sistem UI yang memberikan fallback format tanggal
+        favorite: false,
+        sessions: [],
+        evaluation: null,
+      };
+      folderBulanIni.pages.push(jurnalHariIni);
+    }
+
+    // KUNCI UTAMA: Amankan brankas ke hard disk saat kertas baru saja dibuat
+    localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsip));
+
+    // 5. Distribusikan ke state React
+    setArsipUtama(arsip);
+    setActiveFolder(idBulanIni);
+    setActiveJournal(jurnalHariIni);
   }, []);
-
-  // ====================================================
-  // 2. PEKERJA SIMPAN SESI (Jalan setiap sessionHistory berubah)
-  // ====================================================
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(
-        "jurnal_sessionHistory",
-        JSON.stringify(sessionHistory),
-      );
-    }
-  }, [sessionHistory, isMounted]);
-
-  // ====================================================
-  // 3. PEKERJA SIMPAN TAG (Jalan setiap tagStorage berubah)
-  // ====================================================
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem("jurnal_tagStorage", JSON.stringify(tagStorage));
-    }
-  }, [tagStorage, isMounted]); // kalau depndensinya diisi, berarti jadi semacam sensor. jika array di dalam dependensi itu berubah, lakukan useEffect
-
-  // ====================================================
-  // 4. PEKERJA SIMPAN EVALUASI (Jalan jika ada perubahan pada data evaluasi)
-  // ====================================================
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem("jurnal_flowState", JSON.stringify(flowStateList));
-      localStorage.setItem("jurnal_missTask", JSON.stringify(missTaskList));
-      localStorage.setItem("jurnal_distraction", JSON.stringify(distractions));
-      localStorage.setItem(
-        "jurnal_restingActivity",
-        JSON.stringify(restingActivities),
-      );
-    }
-  }, [flowStateList, missTaskList, distractions, restingActivities, isMounted]);
-
-  // 2. Buat Pekerja Simpan khusus untuk Laporan Evaluasi:
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(
-        "jurnal_riwayatEvaluasi",
-        JSON.stringify(riwayatEvaluasi),
-      );
-    }
-  }, [riwayatEvaluasi, isMounted]);
 
   const tanganiEditEvaluasi = (laporanLama: EvaluasiHarian) => {
     // 1. Sebar data dari laporan lama kembali ke form input (draf)
@@ -265,8 +247,6 @@ export default function Jurnals() {
   };
 
   const [reflectionList, setReflectionList] = useState<Refleksi[]>([]);
-
-  // 3. Ban Berjalan (Input Teks Sementara)
   const [inputRefleksi, setInputRefleksi] = useState("");
 
   const addReflection = () => {
@@ -294,36 +274,82 @@ export default function Jurnals() {
   const tagSession = Array.from(new Set(taskList.map((tugas) => tugas.tag)));
 
   const bookSession = () => {
-    // A. Validasi Keamanan: Cegah penyimpanan jika meja kerja kosong
+    // A. Validasi: Jangan jalan jika draf kosong ATAU jika tidak ada koper (jurnal) yang terbuka
     if (taskList.length === 0 && reflectionList.length === 0) return;
+    if (!activeJournal) return;
 
-    // B. Proses Perakitan (Bungkus ke dalam Objek Sesi)
+    // B. Rakit Objek Sesi
     const newSession: Sesi = {
       id: crypto.randomUUID(),
       startingTime: startingTime || "00:00",
       finishingTime: finishingTime || "00:00",
-      tagUnik: tagSession, // Menggunakan variabel pintar 'Set' yang kita buat sebelumnya
+      tagUnik: tagSession,
       tugas: [...taskList],
       refleksi: [...reflectionList],
     };
 
-    // C. Kirim ke Gudang Utama (Riwayat Sesi)
-    // Letakkan sesi baru di urutan paling atas (...newSession, lalu ...sessionHistory)
-    setSessionHistory([...sessionHistory, newSession]);
+    // C. Proses "Koper Bersarang"
+    // 1. Ambil koper lama, dan tambahkan sesi baru ke slot 'sessions' miliknya
+    const jurnalDiperbarui: JurnalHarian = {
+      ...activeJournal, // bawa data tanggal, id, isFavorite yang lama
+      sessions: [newSession, ...activeJournal.sessions], // tumpuk sesi baru di paling atas
+    };
 
-    // D. Operasi Pembersihan (Reset Draft)
+    // 2. Kirim koper yang sudah diperbarui ini ke fungsi penyimpanan arsip
+    simpanJurnalKeArsip(jurnalDiperbarui);
+
+    // D. Reset Ban Berjalan (Meja Kerja)
     setTaskList([]);
     setReflectionList([]);
-    // Opsional: Kamu bisa mereset startingTime ke waktu saat ini jika mau,
-    // atau membiarkannya sebagai default.
   };
 
-  const sessionHistorySorted = [...sessionHistory].sort((a, b) =>
-    a.startingTime.localeCompare(b.startingTime),
-  );
+  const sessionHistorySorted = activeJournal
+    ? [...activeJournal.sessions].sort((a, b) =>
+        a.startingTime.localeCompare(b.startingTime),
+      )
+    : [];
 
-  const removeSession = (id: string) => {
-    setSessionHistory(sessionHistory.filter((s) => s.id !== id));
+  // const sessionHistorySorted = [...sessionHistory].sort((a, b) =>
+  //   a.startingTime.localeCompare(b.startingTime),
+  // );
+
+  // const removeSession = (id: string) => {
+  //   setSessionHistory(sessionHistory.filter((s) => s.id !== id));
+  // };
+
+  const removeSession = (idYangDihapus: string) => {
+    // Pengaman: Jangan lakukan apa-apa kalau tidak ada jurnal yang aktif
+    if (!activeJournal) return;
+
+    // Langkah 1: Saring (Buang sesi yang ID-nya cocok)
+    // Kita simpan array hasil saringannya ke dalam variabel 'sisaSesi'
+    const sisaSesi = activeJournal.sessions.filter(
+      (s) => s.id !== idYangDihapus,
+    );
+
+    // Langkah 2: Rakit ulang koper
+    const jurnalDiperbarui: JurnalHarian = {
+      ...activeJournal, // Bawa data tanggal, isFavorite, dan evaluasi yang lama
+      sessions: sisaSesi, // Timpa daftar sesinya dengan yang baru saja disaring
+    };
+
+    // Langkah 3: Serahkan ke Mandor Gudang
+    simpanJurnalKeArsip(jurnalDiperbarui);
+  };
+
+  const saveChanges = (sesiDiperbarui: Sesi) => {
+    if (!activeJournal) return; // Pengaman
+
+    // 1. Ganti data sesi lama dengan yang baru diedit
+    const updatedSessions = activeJournal.sessions.map((s) =>
+      s.id === sesiDiperbarui.id ? sesiDiperbarui : s,
+    );
+
+    // 2. Simpan koper utuh ke localStorage
+    simpanJurnalKeArsip({
+      ...activeJournal,
+      sessions: updatedSessions,
+    });
   };
 
   const addFlowStateTime = () => {
@@ -422,32 +448,31 @@ export default function Jurnals() {
   };
 
   const bookEvaluation = () => {
-    // 1. Rakit semua data draf menjadi satu objek Laporan Utuh
+    if (!activeJournal) return;
+
+    // 1. Rakit Laporan Utuh
     const laporanBaru: EvaluasiHarian = {
       id: idEditEvaluasi ? idEditEvaluasi : crypto.randomUUID(),
       flowStates: [...flowStateList],
       crashTime: crashTime,
       missedTasks: [...missTaskList],
       distractions: [...distractions],
-      sleepDuration: sleepTime, // Asumsi kamu punya state sleepTime
-      morningFeeling: inputSleepTag, // Asumsi ini menyimpan perasaan pagi
+      sleepDuration: sleepTime,
+      morningFeeling: inputSleepTag,
       restingActivities: [...restingActivities],
     };
 
-    // 2. Kirim ke Gudang
-    if (idEditEvaluasi) {
-      // Jika sedang mode edit, timpa laporan lama dengan yang baru
-      setRiwayatEvaluasi(
-        riwayatEvaluasi.map((ev) =>
-          ev.id === idEditEvaluasi ? laporanBaru : ev,
-        ),
-      );
-    } else {
-      // Jika laporan baru, tambahkan ke urutan atas
-      setRiwayatEvaluasi([laporanBaru, ...riwayatEvaluasi]);
-    }
+    // 2. Proses "Koper Bersarang"
+    // Timpa slot evaluasi di koper hari ini dengan laporan yang baru
+    const jurnalDiperbarui: JurnalHarian = {
+      ...activeJournal,
+      evaluation: laporanBaru,
+    };
 
-    // 3. Bersihkan Meja Kerja (Reset Draf)
+    // 3. Kirim ke arsip utama (otomatis menimpa yang lama jika mode edit, atau mengisi jika baru)
+    simpanJurnalKeArsip(jurnalDiperbarui);
+
+    // 4. Bersihkan Meja Kerja (Reset Draf)
     setFlowStateList([]);
     setCrashTime("");
     setMissTaskList([]);
@@ -455,10 +480,82 @@ export default function Jurnals() {
     setSleepTime("");
     setInputSleepTag("");
     setRestingActivities([]);
-
-    // 4. Tutup Mode Form, matikan status edit
     setEvaluateMode(false);
     setIdEditEvaluasi(null);
+  };
+
+  const formatTanggalIndo = (tanggalISO: string) => {
+    if (!tanggalISO) return "";
+    const date = new Date(tanggalISO);
+    return date.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const buatFolderBaru = (namaFolderBaru: string) => {
+    if (!namaFolderBaru.trim()) return;
+
+    const folderBaru: FolderBulan = {
+      id: crypto.randomUUID(),
+      name: namaFolderBaru,
+      pages: [], // Koper halamannya masih kosong saat pertama dibuat
+    };
+
+    // Masukkan folder baru ke arsip utama
+    setArsipUtama([...arsipUtama, folderBaru]);
+  };
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  // Fungsi untuk mengekstrak data folder yang sedang aktif
+  const activeFolderData = arsipUtama.find((f) => f.id === activeFolder);
+
+  const toggleFavorite = () => {
+    if (!activeJournal) return;
+    simpanJurnalKeArsip({
+      ...activeJournal,
+      favorite: !activeJournal.favorite, // Balikkan nilai boolean-nya
+    });
+  };
+
+  const tanganiSimpanJudul = () => {
+    if (!activeJournal) return;
+    simpanJurnalKeArsip({
+      ...activeJournal,
+      title: titleDraft,
+    });
+    setIsEditingTitle(false);
+  };
+
+  const simpanJurnalKeArsip = (jurnalYangDiperbarui: JurnalHarian) => {
+    if (!activeFolder) return;
+
+    // 1. Perbarui meja kerja agar layar langsung merender sesi baru
+    setActiveJournal(jurnalYangDiperbarui);
+
+    // 2. Proses bongkar koper dan SIMPAN LANGSUNG ke brankas fisik
+    setArsipUtama((arsipSekarang) => {
+      const arsipBaru = arsipSekarang.map((folder) => {
+        if (folder.id === activeFolder) {
+          return {
+            ...folder,
+            pages: folder.pages.map((page) =>
+              page.id === jurnalYangDiperbarui.id ? jurnalYangDiperbarui : page,
+            ),
+          };
+        }
+        return folder;
+      });
+
+      // KUNCI UTAMA: Tulis langsung ke hard disk detik ini juga!
+      localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsipBaru));
+
+      return arsipBaru; // Kembalikan data baru ke memori React
+    });
   };
 
   if (!isMounted) return null;
@@ -476,16 +573,79 @@ export default function Jurnals() {
         <div className="max-w-250 mx-auto bg-white rounded-3xl shadow-sm relative pb-4">
           {/* --- HEADER STICKY --- */}
           <header
-            className={`sticky -top-4 z-30 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md transition-all duration-300 border-b ${isScrolled ? "rounded-none shadow-md border-transparent" : "rounded-t-3xl shadow-none border-slate-100"}`}
+            className={`sticky -top-4 z-30 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md transition-all duration-300 border-b ${
+              isScrolled
+                ? "rounded-none shadow-md border-transparent"
+                : "rounded-t-3xl shadow-none border-slate-100"
+            }`}
           >
-            <h1 className="font-semibold text-[clamp(1.25rem,3vw,1.75rem)] text-slate-800">
-              Sabtu, 31 Oktober 2026
-            </h1>
-            <IconButton
-              icon={CircleStar}
-              className={`size-[clamp(2.5rem,4vw,3.5rem)] ${isFavorite ? "!text-amber-500 !bg-amber-50 hover:!bg-amber-100" : ""}`}
-              onClick={() => setIsFavorite(!isFavorite)}
-            />
+            <div className="flex flex-col gap-1 flex-1 min-w-0 pr-4">
+              {isEditingTitle ? (
+                // ==========================
+                // MODE EDIT NAMA HALAMAN
+                // ==========================
+                <input
+                  type="text"
+                  autoFocus
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") tanganiSimpanJudul();
+                    if (e.key === "Escape") setIsEditingTitle(false);
+                  }}
+                  onBlur={tanganiSimpanJudul} // Otomatis simpan jika klik di luar area
+                  className="font-semibold text-[clamp(1.25rem,3vw,1.75rem)] text-slate-800 outline-none border-b-2 border-blue-500 bg-transparent w-full"
+                  placeholder={formatTanggalIndo(activeJournal?.date || "")}
+                />
+              ) : (
+                // ==========================
+                // MODE BACA (TAMPILAN DEFAULT)
+                // ==========================
+                <h1 className="font-semibold text-[clamp(1.25rem,3vw,1.75rem)] text-slate-800 truncate">
+                  {/* Jika judul kosong, gunakan fallback format tanggal Indo */}
+                  {activeJournal?.title ||
+                    formatTanggalIndo(activeJournal?.date || "")}
+                </h1>
+              )}
+
+              {/* NAMA FOLDER AKTIF */}
+              <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400 opacity-70"></span>
+                {activeFolderData?.name || "Memuat Folder..."}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* TOMBOL RENAME */}
+              <IconButton
+                icon={PenLine} // Pastikan PenLine sudah di-import dari lucide-react
+                className="size-[clamp(2.5rem,4vw,3.5rem)] !bg-slate-50 hover:!bg-slate-100 !text-slate-500"
+                onClick={() => {
+                  // Saat tombol ditekan, salin nama saat ini (atau tanggal default) ke draft
+                  setTitleDraft(
+                    activeJournal?.title ||
+                      formatTanggalIndo(activeJournal?.date || ""),
+                  );
+                  setIsEditingTitle(true);
+                }}
+              />
+
+              {/* TOMBOL FAVORIT (Terhubung ke brankas) */}
+              <IconButton
+                icon={CircleStar}
+                className={`size-[clamp(2.5rem,4vw,3.5rem)] transition-colors ${
+                  activeJournal?.favorite
+                    ? "!text-amber-500 !bg-amber-50 hover:!bg-amber-100"
+                    : "!bg-slate-50 hover:!bg-slate-100 !text-slate-400"
+                }`}
+                onClick={toggleFavorite}
+              />
+              <IconButton
+                icon={FolderGit2}
+                className="size-[clamp(2.5rem,4vw,3.5rem)] !bg-slate-50 hover:!bg-slate-100 !text-slate-500"
+                onClick={() => setBukaMenuFolder(true)}
+              />
+            </div>
           </header>
 
           <div className="p-4 pt-4 flex flex-col gap-8">
@@ -500,32 +660,24 @@ export default function Jurnals() {
                     key={sesi.id}
                     sesi={sesi}
                     tagStorage={tagStorage}
-                    onSimpan={(sesiDiperbarui) => {
-                      setSessionHistory(
-                        sessionHistory.map((s) =>
-                          s.id === sesiDiperbarui.id ? sesiDiperbarui : s,
-                        ),
-                      );
-                    }}
+                    onSimpan={saveChanges}
                     onHapus={removeSession}
                     onBuatTagBaru={addNewTag}
                   />
                 </div>
               ))}
-              {riwayatEvaluasi.length > 0 && !evaluateMode && (
+              {activeJournal?.evaluation && !evaluateMode && (
                 <div className="mt-8 border-t-2 border-dashed border-slate-200 pt-8">
                   <h2 className="font-bold text-lg text-slate-700 mb-6">
                     Ringkasan Evaluasi Harian
                   </h2>
 
                   <div className="flex flex-col gap-6">
-                    {riwayatEvaluasi.map((laporan) => (
-                      <EvaluationLog
-                        key={laporan.id}
-                        evaluasi={laporan} // Memberikan 1 laporan spesifik
-                        onEdit={tanganiEditEvaluasi} // Memberikan akses ke fungsi pembongkar draf
-                      />
-                    ))}
+                    {/* Tidak perlu .map() karena hanya ada SATU laporan di koper ini */}
+                    <EvaluationLog
+                      evaluasi={activeJournal.evaluation}
+                      onEdit={tanganiEditEvaluasi}
+                    />
                   </div>
                 </div>
               )}
