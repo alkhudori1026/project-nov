@@ -15,8 +15,9 @@ import {
   PencilSparkles,
   PenLine,
   Trash2,
-  ChevronDown,
+  Pencil,
   FolderGit2,
+  X,
 } from "lucide-react";
 
 // 1. Kontrak Tipe Data: Bentuk pasti dari satu objek tugas
@@ -95,7 +96,6 @@ import { useState, useEffect } from "react";
 
 export default function Jurnals() {
   const [isFavorite, setIsFavorite] = useState(false);
-  const [bukaMenuFolder, setBukaMenuFolder] = useState(false);
   const [evaluateMode, setEvaluateMode] = useState(false);
   const [activeTag, setActiveTag] = useState("");
 
@@ -506,6 +506,83 @@ export default function Jurnals() {
 
     // Masukkan folder baru ke arsip utama
     setArsipUtama([...arsipUtama, folderBaru]);
+  };
+
+  // --- STATE KONTROL LACI ---
+  const [bukaMenuFolder, setBukaMenuFolder] = useState(false);
+  const [idEditFolder, setIdEditFolder] = useState<string | null>(null);
+  const [draftNamaFolder, setDraftNamaFolder] = useState("");
+
+  // --- FUNGSI 1: BUAT FOLDER BARU ---
+  const tambahFolderBaru = () => {
+    const idBaru = crypto.randomUUID();
+    const folderBaru: FolderBulan = {
+      id: idBaru,
+      name: "New Folder",
+      pages: [],
+    };
+
+    const arsipBaru = [...arsipUtama, folderBaru];
+    setArsipUtama(arsipBaru);
+    localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsipBaru));
+
+    // Opsional: Langsung ubah fokus ke folder baru
+    setActiveFolder(idBaru);
+  };
+
+  // --- FUNGSI 2: RENAME FOLDER ---
+  const simpanNamaFolder = (idFolder: string) => {
+    if (!draftNamaFolder.trim()) {
+      setIdEditFolder(null);
+      return;
+    }
+
+    const arsipBaru = arsipUtama.map((folder) =>
+      folder.id === idFolder ? { ...folder, name: draftNamaFolder } : folder,
+    );
+
+    setArsipUtama(arsipBaru);
+    localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsipBaru));
+    setIdEditFolder(null);
+  };
+
+  // --- FUNGSI 3: CUT & PASTE (Pindah Folder) ---
+  // Analogi: Cabut kertas dari Laci A, masukkan ke Laci B
+  const pindahkanJurnal = (
+    idJurnal: string,
+    idFolderAsal: string,
+    idFolderTujuan: string | null,
+  ) => {
+    // Pengaman: Jangan lakukan apa-apa jika tujuannya sama dengan asalnya
+    if (idFolderAsal === idFolderTujuan) return;
+
+    setArsipUtama((arsipSekarang) => {
+      // A. Temukan fisik kertasnya (salin datanya)
+      const folderAsal = arsipSekarang.find((f) => f.id === idFolderAsal);
+      const kertasJurnal = folderAsal?.pages.find((p) => p.id === idJurnal);
+
+      if (!kertasJurnal) return arsipSekarang; // Gagal menemukan kertas
+
+      // B. Operasi Serentak: Buang dari asal, Tambah ke tujuan
+      const arsipBaru = arsipSekarang.map((folder) => {
+        if (folder.id === idFolderAsal) {
+          // CUT (Filter): Buang jurnal dari daftar halaman folder ini
+          return {
+            ...folder,
+            pages: folder.pages.filter((p) => p.id !== idJurnal),
+          };
+        }
+        if (folder.id === idFolderTujuan) {
+          // PASTE (Spread): Tambahkan kertas jurnal ke folder ini
+          return { ...folder, pages: [...folder.pages, kertasJurnal] };
+        }
+        return folder; // Abaikan folder lain
+      });
+
+      // C. Kunci brankas
+      localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsipBaru));
+      return arsipBaru;
+    });
   };
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -1154,6 +1231,128 @@ export default function Jurnals() {
               </div>
             </section>
           </div>
+        </div>
+      </div>
+      {/* =========================================
+          LACI KANAN (MENU FOLDER DIRECTORY)
+      ========================================= */}
+
+      {/* A. Backdrop Gelap (Mengaburkan layar belakang saat laci terbuka) */}
+      <div
+        className={`fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity duration-300 ${bukaMenuFolder ? "opacity-100 visible" : "opacity-0 invisible"}`}
+        onClick={() => setBukaMenuFolder(false)} // Klik area gelap untuk menutup laci
+      />
+
+      {/* B. Fisik Laci Kanan */}
+      <div
+        className={`fixed top-0 right-0 h-full w-[clamp(16rem,30vw,24rem)] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col border-l border-slate-200 ${bukaMenuFolder ? "translate-x-0" : "translate-x-full"}`}
+      >
+        {/* Header Laci */}
+        <div className="flex justify-between items-center p-5 border-b border-slate-100">
+          <h2 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+            <FolderGit2 className="w-5 h-5 text-blue-500" />
+            Direktori Jurnal
+          </h2>
+          <IconButton
+            icon={X}
+            onClick={() => setBukaMenuFolder(false)}
+            className="w-8 h-8 !bg-slate-50 hover:!bg-slate-100 !text-slate-500"
+          />
+        </div>
+
+        {/* Area Daftar Folder (Scrollable) */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          {arsipUtama.map((folder) => (
+            <div key={folder.id} className="flex flex-col gap-1">
+              {/* Kepala Folder */}
+              <div
+                className={`group flex justify-between items-center px-3 py-2 rounded-xl transition-colors ${activeFolder === folder.id ? "bg-blue-50 border border-blue-100" : "hover:bg-slate-50 border border-transparent"}`}
+              >
+                {/* Mode Edit vs Mode Baca untuk Nama Folder */}
+                {idEditFolder === folder.id ? (
+                  <input
+                    autoFocus
+                    value={draftNamaFolder}
+                    onChange={(e) => setDraftNamaFolder(e.target.value)}
+                    onBlur={() => simpanNamaFolder(folder.id)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && simpanNamaFolder(folder.id)
+                    }
+                    className="flex-1 min-w-0 bg-white border border-blue-300 rounded px-2 py-1 text-sm font-semibold outline-none"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setActiveFolder(folder.id)}
+                    className="flex-1 min-w-0 text-left text-sm font-bold text-slate-700 truncate"
+                  >
+                    {folder.name}
+                  </button>
+                )}
+
+                {/* Tombol Aksi Folder */}
+                <div className="flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                  <IconButton
+                    icon={Pencil}
+                    onClick={() => {
+                      setDraftNamaFolder(folder.name);
+                      setIdEditFolder(folder.id);
+                    }}
+                    className="w-6 h-6 !bg-transparent hover:!bg-slate-200 !text-slate-500"
+                  />
+                </div>
+              </div>
+
+              {/* Isi Halaman Jurnal di dalam Folder Ini */}
+              <div className="flex flex-col pl-4 border-l-2 border-slate-100 ml-4 gap-1 mt-1">
+                {folder.pages.map((jurnal) => (
+                  <div
+                    key={jurnal.id}
+                    className="group/page flex items-center justify-between"
+                  >
+                    {/* Tombol Buka Halaman */}
+                    <button
+                      onClick={() => {
+                        setActiveFolder(folder.id);
+                        setActiveJournal(jurnal);
+                        setBukaMenuFolder(false); // Tutup laci otomatis setelah milih halaman
+                      }}
+                      className={`flex-1 text-left text-xs font-medium px-3 py-1.5 rounded-lg truncate transition-colors ${activeJournal?.id === jurnal.id ? "text-blue-700 bg-blue-50/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {jurnal.title || jurnal.date}
+                    </button>
+
+                    {/* Tombol Pindah Folder (Cut & Paste Trigger) */}
+                    <div className="relative group/tooltip shrink-0 opacity-0 group-hover/page:opacity-100">
+                      <IconButton
+                        icon={FolderGit2}
+                        // Saat ditekan, halaman ini dipindah ke folder yang sedang AKTIF (bukan folder asalnya)
+                        // Syarat: Kamu harus mengklik kepala folder tujuan dulu agar dia jadi ActiveFolder
+                        onClick={() =>
+                          pindahkanJurnal(jurnal.id, folder.id, activeFolder)
+                        }
+                        className="w-5 h-5 !bg-transparent hover:!bg-blue-100 !text-blue-400"
+                      />
+                      {/* Tooltip kecil memandu user */}
+                      <span className="absolute right-6 top-1/2 -translate-y-1/2 w-max bg-slate-800 text-white text-[10px] px-2 py-1 rounded hidden group-hover/tooltip:block">
+                        Pindah ke {activeFolderData?.name}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Laci (Tombol Tambah Folder) */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+          <button
+            onClick={tambahFolderBaru}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-sm font-semibold text-slate-600 rounded-xl transition-colors shadow-sm"
+          >
+            <FolderGit2 className="w-4 h-4" />
+            Buat Folder Baru
+          </button>
         </div>
       </div>
     </div>
