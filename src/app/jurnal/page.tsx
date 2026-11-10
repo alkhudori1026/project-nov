@@ -95,7 +95,6 @@ interface FolderBulan {
 import { useState, useEffect } from "react";
 
 export default function Jurnals() {
-  const [isFavorite, setIsFavorite] = useState(false);
   const [evaluateMode, setEvaluateMode] = useState(false);
   const [activeTag, setActiveTag] = useState("");
 
@@ -108,8 +107,6 @@ export default function Jurnals() {
   const [inputMissTask, setInputMissTask] = useState("");
 
   const [distractions, setDistractions] = useState<Distraction[]>([]);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
 
   const [inputDistraction, setInputDistraction] = useState("");
   const [inputStartTime, setInputStartTime] = useState("");
@@ -171,6 +168,15 @@ export default function Jurnals() {
       folderBulanIni.pages.push(jurnalHariIni);
     }
 
+    const callTagStorage = localStorage.getItem("jurnal_tagStorage");
+    const callTagSleepStorage = localStorage.getItem("jurnal_tagSleepStorage");
+    if (callTagStorage) {
+      setTagStorage(JSON.parse(callTagStorage));
+    }
+    if (callTagSleepStorage) {
+      setTagSleepStorage(JSON.parse(callTagSleepStorage));
+    }
+
     // KUNCI UTAMA: Amankan brankas ke hard disk saat kertas baru saja dibuat
     localStorage.setItem("jurnal_arsipUtama", JSON.stringify(arsip));
 
@@ -198,8 +204,10 @@ export default function Jurnals() {
   };
 
   const addNewTag = (newTag: string) => {
-    setTagStorage([...tagStorage, newTag]); // Tambahkan tag baru ke daftar memori global
+    const newTagStorage = [...tagStorage, newTag];
+    setTagStorage(newTagStorage); // Tambahkan tag baru ke daftar memori global
     setActiveTag(newTag); // Langsung jadikan tag baru tersebut sebagai yang terpilih
+    localStorage.setItem("jurnal_tagStorage", JSON.stringify(newTagStorage));
   };
 
   // 2. Fungsi membaca pergerakan scroll
@@ -397,8 +405,8 @@ export default function Jurnals() {
     const distraction: Distraction = {
       id: crypto.randomUUID(), // Menghasilkan ID unik standar industri
       distraction: inputDistraction,
-      start: inputStartTime || "lama", // Fallback jika lupa diisi
-      end: inputEndTime || "pokoknya",
+      start: inputStartTime || "00.00", // Fallback jika lupa diisi
+      end: inputEndTime || "00.00",
     };
 
     // C. Pindahkan ke Gudang (Gabungkan dengan data yang sudah ada)
@@ -414,18 +422,14 @@ export default function Jurnals() {
   const [inputSleepTag, setInputSleepTag] = useState("");
   const [tagSleepStorage, setTagSleepStorage] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(
-        "jurnal_tagSleepStorage",
-        JSON.stringify(tagSleepStorage),
-      );
-    }
-  }, [tagSleepStorage, isMounted]); // kalau depndensinya diisi, berarti jadi semacam sensor. maka ketika array di dalam dependensi itu berubah, useEffect akan dilakukan
-
   const addNewSleepTag = (newTag: string) => {
-    setTagSleepStorage([...tagSleepStorage, newTag]); // Tambahkan tag baru ke daftar memori global
+    const newTagSleepStorage = [...tagSleepStorage, newTag];
+    setTagSleepStorage(newTagSleepStorage); // Tambahkan tag baru ke daftar memori global
     setInputSleepTag(newTag); // Langsung jadikan tag baru tersebut sebagai yang terpilih
+    localStorage.setItem(
+      "jurnal_tagSleepStorage",
+      JSON.stringify(newTagSleepStorage),
+    );
   };
 
   const addRestingActivity = () => {
@@ -901,10 +905,7 @@ export default function Jurnals() {
                             daftarTag={tagStorage}
                             tagTerpilih={inputTag} // Sambungkan ke ban berjalan inputTag, bukan activeTag
                             onPilihTag={setInputTag}
-                            onBuatTagBaru={(tag) => {
-                              setTagStorage([...tagStorage, tag]);
-                              setInputTag(tag); // Langsung masukkan tag baru ke ban berjalan
-                            }}
+                            onBuatTagBaru={addNewTag}
                           />
                           <IconButton
                             icon={ListPlus}
@@ -1012,10 +1013,7 @@ export default function Jurnals() {
                                 daftarTag={tagSleepStorage}
                                 tagTerpilih={inputSleepTag} // Sambungkan ke ban berjalan inputTag, bukan activeTag
                                 onPilihTag={setInputSleepTag}
-                                onBuatTagBaru={(tag) => {
-                                  setTagSleepStorage([...tagSleepStorage, tag]);
-                                  setInputSleepTag(tag); // Langsung masukkan tag baru ke ban berjalan
-                                }}
+                                onBuatTagBaru={addNewSleepTag}
                               />
                             </div>
                           </div>
@@ -1157,10 +1155,7 @@ export default function Jurnals() {
                                 daftarTag={tagStorage}
                                 tagTerpilih={inputTag} // Sambungkan ke ban berjalan inputTag, bukan activeTag
                                 onPilihTag={setInputTag}
-                                onBuatTagBaru={(tag) => {
-                                  setTagStorage([...tagStorage, tag]);
-                                  setInputTag(tag); // Langsung masukkan tag baru ke ban berjalan
-                                }}
+                                onBuatTagBaru={addNewTag}
                               />
                             </div>
 
