@@ -648,7 +648,7 @@ export default function Jurnals() {
       {/*-----[ Main Page ]-----*/}
 
       <div
-        className="bg-slate-100 px-12 flex-1 py-4 overflow-y-auto no-scrollbar relative"
+        className="bg-slate-100 px-6 md:px-12 flex-1 py-4 overflow-y-auto no-scrollbar relative"
         onScroll={onScrolling}
       >
         <div className="max-w-250 mx-auto bg-white rounded-3xl shadow-sm relative pb-4">
