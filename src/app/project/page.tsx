@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import TopBar from "@/components/TopBar";
-import ClarifySmartInput from "@/components/ClarifySmartInput";
+import InboxOrganizer from "@/components/InboxOrganizer";
 import { Inbox } from "lucide-react";
 
 export default function Beranda() {
@@ -22,13 +22,6 @@ export default function Beranda() {
               {/* Zona Eksekusi (60%) */}
               {/* M3 Surface Container: White with subtle border and large radius */}
               <div className="flex flex-col gap-6 bg-white border border-slate-200 md:row-span-2 w-full h-full p-6 md:p-8 rounded-[2rem] shadow-sm">
-                <button
-                  onClick={() => setMode("clarify")}
-                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-colors"
-                >
-                  <Inbox className="size-5" />
-                  Mulai Sortir Inbox (1)
-                </button>
                 <h2 className="font-semibold text-2xl text-slate-800 tracking-tight">
                   Take Action
                 </h2>
@@ -272,14 +265,24 @@ export default function Beranda() {
             </div>
 
             {/* 1. TOMBOL CAPTURE (FAB - Floating Action Button) */}
-            <button
-              onClick={() => setCaptureOpen(true)}
-              className="fixed bottom-8 right-8 md:bottom-12 md:right-12 size-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[20px] shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-40 group focus:outline-none focus:ring-4 focus:ring-blue-200"
-            >
-              <span className="text-3xl font-light group-hover:scale-110 transition-transform">
-                +
-              </span>
-            </button>
+            <div className="group fixed bottom-4 right-4 md:bottom-8 md:right-8">
+              <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-300 ease-in-out">
+                <button
+                  onClick={() => setMode("clarify")}
+                  className="overflow-hidden w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-medium shadow-sm p-2"
+                >
+                  <Inbox className="size-10" />
+                </button>
+              </div>
+              <button
+                onClick={() => setCaptureOpen(true)}
+                className="size-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[20px] shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-40 group focus:outline-none focus:ring-4 focus:ring-blue-200"
+              >
+                <span className="text-3xl font-light group-hover:scale-110 transition-transform">
+                  +
+                </span>
+              </button>
+            </div>
             {/* 2. OVERLAY MEREDUP (Background Dim) */}
             {/* Mematikan zona eksekusi sementara agar fokus penuh pada penangkapan ide */}
             <div
@@ -330,7 +333,7 @@ export default function Beranda() {
           </>
         ) : (
           <>
-            <ClarifySmartInput onClose={() => setMode("dashboard")} />
+            <InboxOrganizer onClose={() => setMode("dashboard")} />
           </>
         )}
       </div>
