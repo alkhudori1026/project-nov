@@ -17,28 +17,37 @@ import {
   X,
   AlertCircle,
   Plus,
+  Layers,
 } from "lucide-react";
 import TagPicker from "./TagPicker";
 import DurationPicker from "./DurationPicker";
+
+type DestinationType =
+  | "quick_task"
+  | "next_action"
+  | "action_project"
+  | "para_project"
+  | "para_area"
+  | "para_reference"
+  | null;
 
 export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   // Simulasi Antrean Inbox
   const [inboxQueue, setInboxQueue] = useState([
     {
       id: 1,
-      title: "Perpanjang domain portofolio",
-      description:
-        "Domain habis tanggal 20. Harus cek saldo di kartu jenius dulu.",
+      title: "Perbaiki atap bocor",
+      description: "Bocor di atas kasur saat hujan deras.",
     },
     {
       id: 2,
-      title: "Artikel Micro-frontend",
-      description: "https://medium.com/... baca nanti untuk arsitektur.",
+      title: "Artikel arsitektur Micro-frontend",
+      description: "Referensi pola pemisahan state untuk proyek web.",
     },
     {
       id: 3,
-      title: "Beli kopi bubuk",
-      description: "",
+      title: "Evaluasi anggaran bulanan Kakeibo",
+      description: "Cek pengeluaran pos kebutuhan pokok bulan lalu.",
     },
   ]);
 
@@ -46,10 +55,6 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     inboxQueue.length > 0 ? inboxQueue[0].id : null,
   );
 
-  // State untuk mode meja tengah: "pilih_destinasi" atau "isi_form"
-  const [activeStep, setActiveStep] = useState<"pilih_destinasi" | "isi_form">(
-    "pilih_destinasi",
-  );
   const [showUndoToast, setShowUndoToast] = useState(false);
 
   // Ambil data teratas
@@ -60,14 +65,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   const [localDesc, setLocalDesc] = useState("");
 
   // "null" berarti sedang milih menu. String berarti sedang ngisi form.
-  const [activeForm, setActiveForm] = useState<
-    | null
-    | "next_action"
-    | "gtd_project"
-    | "para_project"
-    | "para_area"
-    | "para_reference"
-  >(null);
+  const [activeForm, setActiveForm] = useState<DestinationType>(null);
 
   // Sinkronisasi input form saat item yang diklik (di kolom 1) berubah
   useEffect(() => {
@@ -91,9 +89,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   );
 
   // Mengontrol destinasi akhir yang dipilih pengguna
-  const [selectedDest, setSelectedDest] = useState<
-    "quick_task" | "next_action" | "action_project" | null
-  >(null);
+  const [selectedDest, setSelectedDest] = useState<DestinationType>(null);
 
   // State untuk parameter Next Action
   const [nextActionData, setNextActionData] = useState({
@@ -103,16 +99,39 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     context: "",
   });
 
-  const daftarPrioritas = ["High (Penting)", "Med (Sedang)", "Low (Rendah)"];
-  const daftarEnergi = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
-  const daftarKonteks = ["@Computer", "@Home", "@Phone", "@Office", "@Errands"];
-
   const [isNewProject, setIsNewProject] = useState(false);
   const [projectData, setProjectData] = useState({
     existingProjectId: "",
     newProjectName: "",
     firstNextAction: "",
   });
+
+  const [isNewParaFolder, setIsNewParaFolder] = useState(false);
+  const [paraFolderData, setParaFolderData] = useState({
+    selectedFolderId: "",
+    newFolderName: "",
+  });
+
+  const daftarPrioritas = ["High (Penting)", "Med (Sedang)", "Low (Rendah)"];
+  const daftarEnergi = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
+  const daftarKonteks = ["@Computer", "@Home", "@Phone", "@Office", "@Errands"];
+
+  const activeProjects = [
+    { id: "p1", name: "Portofolio V2" },
+    { id: "p2", name: "Riset Beasiswa 2027" },
+  ];
+
+  const existingAreas = [
+    { id: "a1", name: "Pengembangan Karir & Coding" },
+    { id: "a2", name: "Kesehatan & Calisthenics" },
+    { id: "a3", name: "Keuangan Pribadi" },
+  ];
+
+  const existingReferences = [
+    { id: "r1", name: "Arsitektur Software & React" },
+    { id: "r2", name: "Desain UI/UX & Material 3" },
+    { id: "r3", name: "Catatan Buku & Psikologi" },
+  ];
 
   // Timer reference untuk mengatur delay hover
   const hoverTimer = useRef<NodeJS.Timeout | null>(null);
@@ -150,17 +169,8 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     }, 300); // Beri waktu kursor bergerak ke bawah tanpa menu langsung hilang
   };
 
-  const handleClickMenu = (menu: "action" | "idea") => {
-    // 1. BUNUH TIMER: Cegah hover menimpa klik
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    // 2. TOGGLE INSTAN: Jika menu yang diklik sudah terbuka, tutup. Jika beda/kosong, buka.
-    setDropdownMenu((prev) => (prev === menu ? null : menu));
-  };
-
   // --- LOGIKA PEMILIHAN DESTINASI ---
-  const selectDestination = (
-    dest: "quick_task" | "next_action" | "action_project",
-  ) => {
+  const selectDestination = (dest: DestinationType) => {
     setSelectedDest(dest);
     setDropdownMenu(null);
   };
@@ -175,6 +185,30 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
       newProjectName: "",
       firstNextAction: "",
     });
+    setIsNewParaFolder(false);
+    setParaFolderData({ selectedFolderId: "", newFolderName: "" });
+  };
+
+  const getParaConfig = () => {
+    if (selectedDest === "para_project") {
+      return {
+        label: "Project",
+        list: activeProjects,
+        placeholder: "Nama Project baru...",
+      };
+    }
+    if (selectedDest === "para_area") {
+      return {
+        label: "Area",
+        list: existingAreas,
+        placeholder: "Misal: Kesehatan, Keuangan...",
+      };
+    }
+    return {
+      label: "Folder Referensi",
+      list: existingReferences,
+      placeholder: "Misal: Resep Masakan, Inspirasi Desain...",
+    };
   };
 
   // --- LOGIKA VALIDASI TOMBOL SIMPAN ---
@@ -199,8 +233,29 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
         return projectData.existingProjectId !== "";
       }
     }
+    if (
+      selectedDest === "para_project" ||
+      selectedDest === "para_area" ||
+      selectedDest === "para_reference"
+    ) {
+      return isNewParaFolder
+        ? paraFolderData.newFolderName.trim() !== ""
+        : paraFolderData.selectedFolderId !== "";
+    }
     return false;
   };
+
+  const isActionSelected =
+    selectedDest === "quick_task" ||
+    selectedDest === "next_action" ||
+    selectedDest === "action_project";
+
+  const isIdeaSelected =
+    selectedDest === "para_project" ||
+    selectedDest === "para_area" ||
+    selectedDest === "para_reference";
+
+  const paraConfig = getParaConfig();
 
   const handleBuatTag = (kategori: string, nilaiBaru: string) => {
     setNextActionData((prev) => ({ ...prev, [kategori]: nilaiBaru }));
@@ -313,9 +368,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                     >
                       <div className="flex gap-2 w-full">
                         <button
-                          onClick={() =>
-                            !selectedDest && handleClickMenu("action")
-                          }
+                          onClick={() => !selectedDest}
                           className={`flex-1 flex items-center justify-center gap-2 p-3 border rounded-xl font-medium transition-all duration-300 ${selectedDest ? "bg-blue-100 border-blue-300 text-blue-800 shadow-sm" : "bg-white border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700"}`}
                         >
                           {selectedDest === "quick_task" ? (
@@ -382,27 +435,83 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                   )}
 
                   {/* --- SISI KANAN: IDE (PARA) --- */}
-                  {!selectedDest && (
+                  {(!selectedDest || isIdeaSelected) && (
                     <div
-                      className="relative flex flex-col flex-1"
+                      className={`relative flex flex-col flex-1 ${
+                        isIdeaSelected ? "w-full flex-none" : ""
+                      }`}
                       onMouseEnter={() => handleMouseEnter("idea")}
                       onMouseLeave={handleMouseLeave}
                     >
-                      <button
-                        onClick={() => handleClickMenu("idea")}
-                        className="w-full flex items-center justify-center gap-2 p-3 bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl text-indigo-700 font-medium transition-all group"
-                      >
-                        <BookOpen className="size-5" /> Ide (PARA)
-                      </button>
+                      <div className="flex gap-2 w-full">
+                        <button
+                          onClick={() => !selectedDest}
+                          className={`flex-1 flex items-center justify-center gap-2 p-3 border rounded-xl font-medium transition-all duration-300 ${
+                            isIdeaSelected
+                              ? "bg-indigo-100 border-indigo-300 text-indigo-800 shadow-sm"
+                              : "bg-white border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700"
+                          }`}
+                        >
+                          {selectedDest === "para_project" ? (
+                            <>
+                              <FolderGit2 className="size-5" /> Kirim ke Project
+                              (PARA)
+                            </>
+                          ) : selectedDest === "para_area" ? (
+                            <>
+                              <Layers className="size-5" /> Kirim ke Area (PARA)
+                            </>
+                          ) : selectedDest === "para_reference" ? (
+                            <>
+                              <BookOpen className="size-5" /> Jadikan Referensi
+                              (PARA)
+                            </>
+                          ) : (
+                            <>
+                              <BookOpen className="size-5" /> Ide (PARA)
+                            </>
+                          )}
+                        </button>
+                        {isIdeaSelected && (
+                          <button
+                            onClick={resetDestination}
+                            className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors"
+                          >
+                            <X className="size-5" />
+                          </button>
+                        )}
+                      </div>
 
-                      {/* DROPDOWN IDE (Dikonversi menjadi DROP-UP) */}
+                      {/* DROP-UP IDE (PARA) */}
                       <div
-                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-10 ${dropdownMenu === "idea" ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"}`}
+                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-30 ${
+                          dropdownMenu === "idea"
+                            ? "grid-rows-[1fr] opacity-100 mb-2"
+                            : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"
+                        }`}
                       >
-                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-indigo-100 p-2 rounded-2xl shadow-lg shadow-indigo-900/5">
-                          <p className="text-xs text-slate-400 p-2 text-center">
-                            Fokus ke Tindakan dulu...
-                          </p>
+                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-indigo-100 p-2 rounded-2xl shadow-lg">
+                          <button
+                            onClick={() => selectDestination("para_project")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-indigo-50 rounded-xl text-slate-600 hover:text-indigo-700 font-medium transition-colors text-sm"
+                          >
+                            <FolderGit2 className="size-4 text-indigo-500" />{" "}
+                            Kirim ke Project
+                          </button>
+                          <button
+                            onClick={() => selectDestination("para_area")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
+                          >
+                            <Layers className="size-4 text-emerald-500" /> Kirim
+                            ke Area
+                          </button>
+                          <button
+                            onClick={() => selectDestination("para_reference")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-amber-50 rounded-xl text-slate-600 hover:text-amber-700 font-medium transition-colors text-sm"
+                          >
+                            <BookOpen className="size-4 text-amber-500" />{" "}
+                            Jadikan Referensi
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -570,6 +679,80 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                             className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-400"
                           />
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isIdeaSelected && (
+                  <div className="mt-2 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-indigo-100 bg-white rounded-2xl relative z-10">
+                    {/* Switcher: Pilih Folder Eksisting vs Buat Folder Baru */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg w-full mb-1">
+                      <button
+                        onClick={() => setIsNewParaFolder(false)}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                          !isNewParaFolder
+                            ? "bg-white text-indigo-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        Pilih {paraConfig.label}
+                      </button>
+                      <button
+                        onClick={() => setIsNewParaFolder(true)}
+                        className={`flex-1 flex justify-center items-center gap-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                          isNewParaFolder
+                            ? "bg-white text-indigo-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        <Plus className="size-3" /> Buat {paraConfig.label} Baru
+                      </button>
+                    </div>
+
+                    {!isNewParaFolder ? (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] uppercase font-bold text-slate-400">
+                          Pilih {paraConfig.label} yang tersedia
+                        </label>
+                        <select
+                          value={paraFolderData.selectedFolderId}
+                          onChange={(e) =>
+                            setParaFolderData({
+                              ...paraFolderData,
+                              selectedFolderId: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl p-3 outline-none focus:border-indigo-400 text-sm font-medium"
+                        >
+                          <option value="" disabled>
+                            -- Pilih {paraConfig.label} --
+                          </option>
+                          {paraConfig.list.map((folder) => (
+                            <option key={folder.id} value={folder.id}>
+                              {folder.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                        <label className="text-[10px] uppercase font-bold text-slate-400">
+                          Nama {paraConfig.label} Baru
+                        </label>
+                        <input
+                          type="text"
+                          value={paraFolderData.newFolderName}
+                          onChange={(e) =>
+                            setParaFolderData({
+                              ...paraFolderData,
+                              newFolderName: e.target.value,
+                            })
+                          }
+                          placeholder={paraConfig.placeholder}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-400"
+                          autoFocus
+                        />
                       </div>
                     )}
                   </div>
