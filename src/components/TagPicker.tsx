@@ -102,33 +102,9 @@ export default function TagPicker({
 
       {/* LACI OPERASIONAL (COMBOBOX) */}
       {isOpen && (
-        <div className="absolute left-0 left-0 mb-2 z-50 w-56 origin-top-right bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden flex flex-col">
-          {/* Area Pencarian */}
-          <div className="flex items-center gap-2 px-3 border-b border-slate-100 bg-slate-50">
-            <Search className="w-4 h-4 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={kataKunci}
-              onChange={(e) => setKataKunci(e.target.value)}
-              placeholder="Cari atau buat tag..."
-              className="w-full py-2.5 text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-700"
-              autoFocus // Otomatis aktifkan kursor saat laci terbuka
-            />
-          </div>
-
+        <div className="absolute left-0 bottom-full mb-2 z-50 w-56 origin-top-right bg-white border border-slate-200 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden flex flex-col">
           {/* Area Daftar Pilihan */}
           <div className="max-h-48 overflow-y-auto no-scrollbar py-1 flex flex-col">
-            {/* Opsi: Buat Tag Baru */}
-            {bisaBuatBaru && (
-              <button
-                onClick={() => konfirmasiPilihan(kataKunci.trim(), true)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-left text-blue-600 hover:bg-blue-50 transition-colors w-full"
-              >
-                <Plus className="w-4 h-4 shrink-0" />
-                <span className="truncate">Buat "{kataKunci.trim()}"</span>
-              </button>
-            )}
-
             {/* Opsi: Daftar Tag Tersaring */}
             {tagTersaring.length > 0
               ? tagTersaring.map((tag) => (
@@ -150,6 +126,30 @@ export default function TagPicker({
                     Tidak ada tag.
                   </div>
                 )}
+
+            {/* Opsi: Buat Tag Baru */}
+            {bisaBuatBaru && (
+              <button
+                onClick={() => konfirmasiPilihan(kataKunci.trim(), true)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-left text-blue-600 hover:bg-blue-50 transition-colors w-full"
+              >
+                <Plus className="w-4 h-4 shrink-0" />
+                <span className="truncate">Buat "{kataKunci.trim()}"</span>
+              </button>
+            )}
+
+            {/* Area Pencarian */}
+            <div className="flex items-center gap-2 px-3 border-b border-slate-100 bg-slate-50">
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                value={kataKunci}
+                onChange={(e) => setKataKunci(e.target.value)}
+                placeholder="Cari atau buat tag..."
+                className="w-full py-2.5 text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-700"
+                autoFocus // Otomatis aktifkan kursor saat laci terbuka
+              />
+            </div>
           </div>
         </div>
       )}

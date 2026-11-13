@@ -1,25 +1,44 @@
 // components/ClarifySmartInput.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   CheckCircle2,
   FolderGit2,
   BookOpen,
   Trash2,
-  Undo2,
   ArrowRight,
+  Undo2,
   Inbox,
-  Save,
+  Clock,
+  Battery,
+  Tag,
+  AlignLeft,
+  X,
+  AlertCircle,
 } from "lucide-react";
-import { text } from "stream/consumers";
+import TagPicker from "./TagPicker";
+import DurationPicker from "./DurationPicker";
 
 export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   // Simulasi Antrean Inbox
   const [inboxQueue, setInboxQueue] = useState([
-    { id: 1, text: "Perpanjang domain portofolio web" },
-    { id: 2, text: "Artikel bagus tentang Micro-frontend" },
-    { id: 3, text: "Beli kopi bubuk" },
+    {
+      id: 1,
+      title: "Perpanjang domain portofolio",
+      description:
+        "Domain habis tanggal 20. Harus cek saldo di kartu jenius dulu.",
+    },
+    {
+      id: 2,
+      title: "Artikel Micro-frontend",
+      description: "https://medium.com/... baca nanti untuk arsitektur.",
+    },
+    {
+      id: 3,
+      title: "Beli kopi bubuk",
+      description: "",
+    },
   ]);
 
   const [selectedItemId, setSelectedItemId] = useState<number | null>(
@@ -35,6 +54,131 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   // Ambil data teratas
   const currentItem =
     inboxQueue.find((item) => item.id === selectedItemId) || null;
+
+  const [localTitle, setLocalTitle] = useState("");
+  const [localDesc, setLocalDesc] = useState("");
+
+  // "null" berarti sedang milih menu. String berarti sedang ngisi form.
+  const [activeForm, setActiveForm] = useState<
+    | null
+    | "next_action"
+    | "gtd_project"
+    | "para_project"
+    | "para_area"
+    | "para_reference"
+  >(null);
+
+  // Sinkronisasi input form saat item yang diklik (di kolom 1) berubah
+  useEffect(() => {
+    if (currentItem) {
+      setLocalTitle(currentItem.title);
+      setLocalDesc(currentItem.description);
+      setActiveForm(null); // Reset form jika pindah ide
+    }
+  }, [currentItem]);
+
+  // Fungsi pura-pura untuk menyimpan (akan dikembangkan nanti di Kolom 3)
+  const handleSimpanData = (tipe: string) => {
+    console.log(`Menyimpan [${localTitle}] sebagai [${tipe}]`);
+    // Nanti di sini logika pindah ke Kolom 3 dan hapus dari Kolom 1
+  };
+
+  // 3. STATE KOLOM 2: INTERAKSI DROPDOWN & MORPHING
+  // Mengontrol menu mana yang sedang terbuka
+  const [dropdownMenu, setDropdownMenu] = useState<"action" | "idea" | null>(
+    null,
+  );
+
+  // Mengontrol destinasi akhir yang dipilih pengguna
+  const [selectedDest, setSelectedDest] = useState<
+    "quick_task" | "next_action" | "action_project" | null
+  >(null);
+
+  // State untuk parameter Next Action
+  const [nextActionData, setNextActionData] = useState({
+    priority: "",
+    energy: "",
+    duration: "",
+    context: "",
+  });
+
+  const daftarPrioritas = ["High (Penting)", "Med (Sedang)", "Low (Rendah)"];
+  const daftarEnergi = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
+  const daftarKonteks = ["@Computer", "@Home", "@Phone", "@Office", "@Errands"];
+
+  // Timer reference untuk mengatur delay hover
+  const hoverTimer = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (currentItem) {
+      setLocalTitle(currentItem.title);
+      setLocalDesc(currentItem.description);
+      // Reset semua form saat pindah item
+      setSelectedDest(null);
+      setDropdownMenu(null);
+      setNextActionData({
+        priority: "",
+        energy: "",
+        duration: "",
+        context: "",
+      });
+    }
+  }, [currentItem]);
+
+  // --- LOGIKA HOVER DELAY & KLIK ---
+  const handleMouseEnter = (menu: "action" | "idea") => {
+    if (selectedDest) return; // Kunci hover jika sudah memilih destinasi
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setDropdownMenu(menu);
+    }, 500); // 300ms delay agar tidak mengagetkan
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setDropdownMenu(null);
+    }, 500); // Beri waktu kursor bergerak ke bawah tanpa menu langsung hilang
+  };
+
+  const handleClickMenu = (menu: "action" | "idea") => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    // Jika diklik, buka paksa atau tutup paksa (Toggle)
+    setDropdownMenu(dropdownMenu === menu ? null : menu);
+  };
+
+  // --- LOGIKA PEMILIHAN DESTINASI ---
+  const selectDestination = (
+    dest: "quick_task" | "next_action" | "action_project",
+  ) => {
+    setSelectedDest(dest);
+    setDropdownMenu(null); // Tutup dropdown
+  };
+
+  const resetDestination = () => {
+    setSelectedDest(null);
+    setNextActionData({ priority: "", energy: "", duration: "", context: "" });
+  };
+
+  // --- LOGIKA VALIDASI TOMBOL SIMPAN ---
+  const isSaveReady = () => {
+    if (!selectedDest) return false;
+    if (selectedDest === "quick_task") return true; // Tugas ringan bisa langsung simpan
+    if (selectedDest === "next_action") {
+      // Harus terisi semua 4 atribut
+      return (
+        nextActionData.priority !== "" &&
+        nextActionData.energy !== "" &&
+        nextActionData.duration !== "" &&
+        nextActionData.context !== ""
+      );
+    }
+    return false;
+  };
+
+  const handleBuatTag = (kategori: string, nilaiBaru: string) => {
+    setNextActionData((prev) => ({ ...prev, [kategori]: nilaiBaru }));
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col max-w-350 mx-auto">
@@ -54,10 +198,9 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
       {/* Grid 3 Kolom ala Kantor Pos */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_1fr] gap-6 max-w-[1600px] w-full mx-auto flex-1">
         {/* KOLOM 1: ANTREAN INBOX (ZONA KIRI) */}
-        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 flex flex-col gap-5 max-h-[85vh] overflow-hidden flex-shrink-0">
+        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 flex flex-col gap-5 max-h-[85vh] overflow-hidden">
           <h2 className="font-semibold text-slate-500 uppercase tracking-widest text-sm flex justify-between items-center">
             Draft Catatan
-            {/* Lencana (Badge) indikator jumlah sisa */}
             <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md text-xs font-bold">
               {inboxQueue.length}
             </span>
@@ -65,39 +208,32 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
 
           <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 pb-4 h-full">
             {inboxQueue.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400 gap-2">
-                <CheckCircle2 className="size-8 opacity-50" />
-                <p className="text-sm text-center">
-                  Tidak ada draf.
-                  <br />
-                  Kotak masuk bersih!
-                </p>
+              <div className="text-center text-slate-400 mt-10">
+                Inbox Bersih!
               </div>
             ) : (
-              // Looping semua item di antrean
               inboxQueue.map((item) => {
-                // Evaluasi apakah kotak ini adalah kotak yang sedang aktif
                 const isActive = currentItem?.id === item.id;
-
                 return (
                   <div
                     key={item.id}
                     onClick={() => setSelectedItemId(item.id)}
                     className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? "bg-white border-blue-400 shadow-sm ring-1 ring-blue-100" // Desain saat aktif
-                        : "bg-transparent border-slate-200 opacity-60 hover:opacity-100 hover:bg-white hover:shadow-sm" // Desain saat diam (pasif)
+                        ? "bg-white border-blue-400 shadow-sm ring-1 ring-blue-100"
+                        : "bg-transparent border-slate-200 opacity-60 hover:opacity-100 hover:bg-white"
                     }`}
                   >
                     <p
-                      className={`text-sm line-clamp-2 leading-relaxed ${
-                        isActive
-                          ? "text-blue-800 font-medium"
-                          : "text-slate-600"
-                      }`}
+                      className={`text-sm font-medium line-clamp-1 ${isActive ? "text-blue-800" : "text-slate-700"}`}
                     >
-                      {item.text}
+                      {item.title}
                     </p>
+                    {item.description && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                        {item.description}
+                      </p>
+                    )}
                   </div>
                 );
               })
@@ -106,127 +242,247 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* KOLOM 2: MEJA INSPEKSI (ZONA TENGAH) */}
-        <div className="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm flex flex-col relative">
+        <div className="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col relative max-h-[85vh] overflow-y-auto custom-scrollbar">
           {currentItem ? (
             <>
-              <p className="text-sm font-semibold text-blue-600 tracking-widest mb-4">
-                Dimana ide ini ditempatkan?
-              </p>
-              <div className="flex flex-1 flex-col gap-4 mb-4">
+              {/* AREA INPUT (JUDUL & DESKRIPSI) */}
+              <div className="flex flex-col gap-4 mb-6">
                 <input
                   type="text"
-                  value={currentItem.text}
-                  className="text-3xl font-medium text-center text-slate-800 leading-tight outline-none"
-                ></input>
-                <div className="rounded-2xl border border-slate-200 bg-slate-100 h-full p-2 gap-2 ">
-                  <p className="text-slate-400 text-sm italic">description</p>
-                  <input
-                    type="text"
-                    id="description"
-                    className="outline-none size-full"
-                  ></input>
+                  value={localTitle}
+                  onChange={(e) => setLocalTitle(e.target.value)}
+                  placeholder="Judul catatan..."
+                  className="text-2xl md:text-3xl font-medium text-slate-800 leading-tight outline-none w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 transition-colors py-1"
+                />
+                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-colors focus-within:border-blue-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50">
+                  <label className="text-slate-400 text-xs font-semibold uppercase flex items-center gap-2">
+                    <AlignLeft className="size-3" /> Deskripsi
+                  </label>
+                  <textarea
+                    value={localDesc}
+                    onChange={(e) => setLocalDesc(e.target.value)}
+                    placeholder="Tambahkan detail..."
+                    className="outline-none w-full bg-transparent resize-none min-h-[4rem] text-sm text-slate-600 custom-scrollbar"
+                  />
                 </div>
               </div>
-              {/* Pergantian State: Nunggu Keputusan vs Ngisi Form */}
-              <div className="flex flex-col gap-4 bg-blue-50 border border-blue-100 rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-                {/* 
-    KUNCI PERBAIKAN: Gunakan flex-wrap dan w-full. 
-    Ini membuat tombol di baris atas dan panel di baris bawah menjadi saudara (siblings) satu level,
-    sehingga fungsi peer bisa bekerja dengan sempurna.
-  */}
-                <div className="flex flex-wrap gap-x-3 w-full">
-                  {/* PEER 1: Tombol Tindakan */}
-                  <button className="peer/action flex-1 flex items-center gap-2 p-2 mb-2 bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 rounded-xl text-emerald-700 font-medium transition-all text-left group">
-                    <div className="bg-emerald-100 p-2 rounded-lg group-hover:bg-emerald-200">
-                      <CheckCircle2 className="size-5" />
-                    </div>
-                    <span className="text-sm">Tindakan</span>
-                  </button>
 
-                  {/* PEER 2: Tombol Ide */}
-                  <button className="peer/idea flex-1 flex items-center gap-2 p-2 mb-2 bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 rounded-xl text-blue-700 font-medium transition-all text-left group">
-                    <div className="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-200">
-                      <ArrowRight className="size-5" />
-                    </div>
-                    <span className="text-sm">Ide (PARA)</span>
-                  </button>
+              {/* AREA KEPUTUSAN & MORPHING */}
+              <div className="flex flex-col gap-4 bg-slate-50 border border-slate-200 rounded-3xl p-6 mt-auto relative transition-all duration-300">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 text-center">
+                  Di mana ide ini ditempatkan?
+                </p>
 
-                  {/* --- AREA PANEL BAWAH --- */}
+                {/* BARIS TOMBOL UTAMA */}
+                <div className="flex flex-wrap gap-3 w-full relative">
+                  {/* --- SISI KIRI: TINDAKAN --- */}
+                  {(!selectedDest ||
+                    ["quick_task", "next_action", "action_project"].includes(
+                      selectedDest,
+                    )) && (
+                    <div
+                      className={`relative flex flex-col flex-1 ${selectedDest ? "w-full flex-none" : ""}`}
+                      onMouseEnter={() => handleMouseEnter("action")}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      <div className="flex gap-2 w-full">
+                        <button
+                          onClick={() =>
+                            !selectedDest && handleClickMenu("action")
+                          }
+                          className={`flex-1 flex items-center justify-center gap-2 p-3 border rounded-xl font-medium transition-all duration-300 ${selectedDest === "quick_task" ? "bg-emerald-100 border-emerald-300 text-emerald-800 shadow-sm" : selectedDest === "next_action" ? "bg-blue-100 border-blue-300 text-blue-800 shadow-sm" : "bg-white border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700"}`}
+                        >
+                          {selectedDest === "quick_task" ? (
+                            <>
+                              <Clock className="size-5" /> Tugas Ringan (&lt;
+                              2m)
+                            </>
+                          ) : selectedDest === "next_action" ? (
+                            <>
+                              <ArrowRight className="size-5" /> Jadikan Next
+                              Action
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="size-5" /> Tindakan
+                            </>
+                          )}
+                        </button>
+                        {selectedDest && (
+                          <button
+                            onClick={resetDestination}
+                            className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors animate-in fade-in slide-in-from-right-4 duration-300"
+                          >
+                            <X className="size-5" />
+                          </button>
+                        )}
+                      </div>
 
-                  {/* PANEL TINDAKAN (Action) */}
-                  {/* hover:grid-rows-[1fr] mencegah menu tertutup saat kursor mouse pindah ke area panel ini */}
-                  <div className="w-full grid grid-rows-[0fr] peer-hover/action:grid-rows-[1fr] hover:grid-rows-[1fr] transition-all delay-300 duration-300 ease-out">
-                    {/* pt-3 (padding top) diletakkan di elemen dalam agar tidak merusak animasi dari 0px */}
-                    <div className="overflow-hidden flex flex-col gap-2 transition-opacity duration-300">
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 rounded-xl text-emerald-700 font-medium transition-all text-left group">
-                        <div className="bg-emerald-100 p-2 rounded-lg group-hover:bg-emerald-200">
-                          <CheckCircle2 className="size-4" />
+                      {/* DROPDOWN TINDAKAN (Dikonversi menjadi DROP-UP) */}
+                      {/* Perhatikan kelas 'bottom-full mb-2 origin-bottom' untuk membalik arahnya */}
+                      <div
+                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-10 ${dropdownMenu === "action" ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"}`}
+                      >
+                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-emerald-100 p-2 rounded-2xl shadow-lg shadow-emerald-900/5">
+                          <button
+                            onClick={() => selectDestination("quick_task")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
+                          >
+                            <Clock className="size-4 text-emerald-500" /> Tugas
+                            Ringan (&lt; 2m)
+                          </button>
+                          <button
+                            onClick={() => selectDestination("next_action")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
+                          >
+                            <ArrowRight className="size-4 text-blue-500" />{" "}
+                            Jadikan Next Action
+                          </button>
+                          <button
+                            disabled
+                            className="flex items-center gap-3 p-3 w-full opacity-40 rounded-xl text-slate-600 font-medium cursor-not-allowed text-sm"
+                          >
+                            <FolderGit2 className="size-4 text-slate-400" />{" "}
+                            Masukkan ke Project (Ditahan)
+                          </button>
                         </div>
-                        <span className="text-sm">Tugas Ringan (2m)</span>
-                      </button>
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 rounded-xl text-emerald-700 font-medium transition-all text-left group">
-                        <div className="bg-emerald-100 p-2 rounded-lg group-hover:bg-emerald-200">
-                          <FolderGit2 className="size-4" />
-                        </div>
-                        <span className="text-sm">Jadikan Next Action</span>
-                      </button>
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 rounded-xl text-emerald-700 font-medium transition-all text-left group">
-                        <div className="bg-emerald-100 p-2 rounded-lg group-hover:bg-emerald-200">
-                          <FolderGit2 className="size-4" />
-                        </div>
-                        <span className="text-sm">Masukkan ke Project</span>
-                      </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* PANEL IDE (PARA) */}
-                  <div className="w-full grid grid-rows-[0fr] peer-hover/idea:grid-rows-[1fr] hover:grid-rows-[1fr] transition-all delay-300 duration-300 ease-out">
-                    <div className="overflow-hidden flex flex-col gap-2 transition-opacity duration-300">
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl text-indigo-700 font-medium transition-all text-left group">
-                        <div className="bg-indigo-100 p-2 rounded-lg group-hover:bg-indigo-200">
-                          <FolderGit2 className="size-4" />
-                        </div>
-                        <span className="text-sm">Kirim ke Project</span>
+                  {/* --- SISI KANAN: IDE (PARA) --- */}
+                  {!selectedDest && (
+                    <div
+                      className="relative flex flex-col flex-1"
+                      onMouseEnter={() => handleMouseEnter("idea")}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      <button
+                        onClick={() => handleClickMenu("idea")}
+                        className="w-full flex items-center justify-center gap-2 p-3 bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl text-indigo-700 font-medium transition-all group"
+                      >
+                        <BookOpen className="size-5" /> Ide (PARA)
                       </button>
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl text-indigo-700 font-medium transition-all text-left group">
-                        <div className="bg-indigo-100 p-2 rounded-lg group-hover:bg-indigo-200">
-                          <FolderGit2 className="size-4" />
+
+                      {/* DROPDOWN IDE (Dikonversi menjadi DROP-UP) */}
+                      <div
+                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-10 ${dropdownMenu === "idea" ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"}`}
+                      >
+                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-indigo-100 p-2 rounded-2xl shadow-lg shadow-indigo-900/5">
+                          <p className="text-xs text-slate-400 p-2 text-center">
+                            Fokus ke Tindakan dulu...
+                          </p>
                         </div>
-                        <span className="text-sm">Kirim ke Area</span>
-                      </button>
-                      <button className="flex items-center gap-2 p-2 w-full bg-white border border-amber-200 hover:border-amber-400 hover:bg-amber-50 rounded-xl text-amber-700 font-medium transition-all text-left group">
-                        <div className="bg-amber-100 p-2 rounded-lg group-hover:bg-amber-200">
-                          <BookOpen className="size-4" />
-                        </div>
-                        <span className="text-sm">Jadikan Referensi</span>
-                      </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Area Tombol Aksi Bawah */}
-                <div className="grid grid-cols-[1fr_auto] gap-3 mt-auto pt-6 border-t border-blue-200/50">
-                  <button className="flex items-center justify-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-sm">
-                    Simpan Data Mentah
-                  </button>
-                  <button className="group flex items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors">
-                    <Trash2 className="size-4" />
-                    <div className="grid grid-cols-[0fr] group-hover:ml-2 group-hover:grid-cols-[1fr] transition-all duration-300 ease-out">
-                      <p className="text-nowrap w-full opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out overflow-hidden text-sm">
-                        Hapus Catatan
-                      </p>
+                {/* --- RENDER PARAMETER FORM (NEXT ACTION) --- */}
+                {selectedDest === "next_action" && (
+                  <div className="mt-2 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-blue-100 bg-white rounded-2xl">
+                    {/* IMPLEMENTASI TAG PICKER UNTUK PRIORITAS */}
+                    <div className="flex flex-col gap-2 relative">
+                      <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <AlertCircle className="size-3" /> Prioritas
+                      </label>
+                      <TagPicker
+                        daftarTag={daftarPrioritas}
+                        tagTerpilih={nextActionData.priority}
+                        onPilihTag={(tag) =>
+                          setNextActionData({
+                            ...nextActionData,
+                            priority: tag,
+                          })
+                        }
+                        onBuatTagBaru={(tag) => handleBuatTag("priority", tag)}
+                        isCompact={false}
+                      />
                     </div>
+
+                    {/* IMPLEMENTASI TAG PICKER UNTUK ENERGI */}
+                    <div className="flex flex-col gap-2 relative">
+                      <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <Battery className="size-3" /> Energi
+                      </label>
+                      <TagPicker
+                        daftarTag={daftarEnergi}
+                        tagTerpilih={nextActionData.energy}
+                        onPilihTag={(tag) =>
+                          setNextActionData({ ...nextActionData, energy: tag })
+                        }
+                        onBuatTagBaru={(tag) => handleBuatTag("energy", tag)}
+                        isCompact={false}
+                      />
+                    </div>
+
+                    {/* IMPLEMENTASI DURATION PICKER UNTUK DURASI */}
+                    <div className="flex flex-col gap-2 relative z-20">
+                      {" "}
+                      {/* z-index ditinggikan agar popovernya menutupi elemen bawah */}
+                      <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <Clock className="size-3" /> Durasi
+                      </label>
+                      <DurationPicker
+                        durasiTerpilih={nextActionData.duration}
+                        onPilihDurasi={(durasi) =>
+                          setNextActionData({
+                            ...nextActionData,
+                            duration: durasi,
+                          })
+                        }
+                        isCompact={false}
+                      />
+                    </div>
+
+                    {/* IMPLEMENTASI TAG PICKER UNTUK KONTEKS */}
+                    <div className="flex flex-col gap-2 relative">
+                      <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <Tag className="size-3" /> Konteks
+                      </label>
+                      <TagPicker
+                        daftarTag={daftarKonteks}
+                        tagTerpilih={nextActionData.context}
+                        onPilihTag={(tag) =>
+                          setNextActionData({ ...nextActionData, context: tag })
+                        }
+                        onBuatTagBaru={(tag) => handleBuatTag("context", tag)}
+                        isCompact={false}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* AREA TOMBOL SIMPAN & HAPUS */}
+                <div className="grid grid-cols-[1fr_auto] gap-3 mt-4 pt-4 border-t border-slate-200">
+                  <button
+                    disabled={!isSaveReady()}
+                    onClick={() =>
+                      console.log("Simpan", {
+                        title: localTitle,
+                        desc: localDesc,
+                        dest: selectedDest,
+                        data: nextActionData,
+                      })
+                    }
+                    className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm"
+                  >
+                    {!selectedDest
+                      ? "Pilih destinasi dulu..."
+                      : !isSaveReady()
+                        ? "Lengkapi data rincian..."
+                        : "Simpan Tindakan"}
+                  </button>
+                  <button className="flex items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors">
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-              <CheckCircle2 className="size-16 mb-4 text-emerald-400" />
-              <p className="text-xl font-medium text-slate-600">
-                Inbox Kosong (Zero Inbox)
-              </p>
-              <p className="text-sm">Semua ide sudah disortir.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 h-full">
+              <CheckCircle2 className="size-16 mb-4 text-slate-200" />
+              <p className="text-lg font-medium">Pilih draf di sebelah kiri</p>
             </div>
           )}
         </div>

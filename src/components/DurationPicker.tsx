@@ -96,7 +96,7 @@ export default function DurationPicker({
       </button>
       {/* Mesin Popover (Laci Operasional) */}
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-2 w-64 p-4 origin-top-right bg-white border border-slate-200 shadow-xl rounded-3xl">
+        <div className="absolute left-0 bottom-full z-50 mb-2 w-64 p-4 origin-top-right bg-white border border-slate-200 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] rounded-3xl">
           <p className="text-sm font-semibold text-slate-700 mb-4 text-center">
             Atur Durasi
           </p>
