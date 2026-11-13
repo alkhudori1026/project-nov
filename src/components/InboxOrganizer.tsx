@@ -16,6 +16,7 @@ import {
   AlignLeft,
   X,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import TagPicker from "./TagPicker";
 import DurationPicker from "./DurationPicker";
@@ -106,6 +107,13 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   const daftarEnergi = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
   const daftarKonteks = ["@Computer", "@Home", "@Phone", "@Office", "@Errands"];
 
+  const [isNewProject, setIsNewProject] = useState(false);
+  const [projectData, setProjectData] = useState({
+    existingProjectId: "",
+    newProjectName: "",
+    firstNextAction: "",
+  });
+
   // Timer reference untuk mengatur delay hover
   const hoverTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -127,24 +135,26 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
 
   // --- LOGIKA HOVER DELAY & KLIK ---
   const handleMouseEnter = (menu: "action" | "idea") => {
-    if (selectedDest) return; // Kunci hover jika sudah memilih destinasi
+    if (selectedDest) return;
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => {
-      setDropdownMenu(menu);
-    }, 500); // 300ms delay agar tidak mengagetkan
+    // Menu hanya akan otomatis terbuka jika tidak ada menu lain yang sedang terbuka
+    if (dropdownMenu === null) {
+      hoverTimer.current = setTimeout(() => setDropdownMenu(menu), 300);
+    }
   };
 
   const handleMouseLeave = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
       setDropdownMenu(null);
-    }, 500); // Beri waktu kursor bergerak ke bawah tanpa menu langsung hilang
+    }, 300); // Beri waktu kursor bergerak ke bawah tanpa menu langsung hilang
   };
 
   const handleClickMenu = (menu: "action" | "idea") => {
+    // 1. BUNUH TIMER: Cegah hover menimpa klik
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    // Jika diklik, buka paksa atau tutup paksa (Toggle)
-    setDropdownMenu(dropdownMenu === menu ? null : menu);
+    // 2. TOGGLE INSTAN: Jika menu yang diklik sudah terbuka, tutup. Jika beda/kosong, buka.
+    setDropdownMenu((prev) => (prev === menu ? null : menu));
   };
 
   // --- LOGIKA PEMILIHAN DESTINASI ---
@@ -152,26 +162,42 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     dest: "quick_task" | "next_action" | "action_project",
   ) => {
     setSelectedDest(dest);
-    setDropdownMenu(null); // Tutup dropdown
+    setDropdownMenu(null);
   };
 
   const resetDestination = () => {
     setSelectedDest(null);
+    setDropdownMenu(null);
     setNextActionData({ priority: "", energy: "", duration: "", context: "" });
+    setIsNewProject(false);
+    setProjectData({
+      existingProjectId: "",
+      newProjectName: "",
+      firstNextAction: "",
+    });
   };
 
   // --- LOGIKA VALIDASI TOMBOL SIMPAN ---
   const isSaveReady = () => {
     if (!selectedDest) return false;
-    if (selectedDest === "quick_task") return true; // Tugas ringan bisa langsung simpan
+    if (selectedDest === "quick_task") return true;
     if (selectedDest === "next_action") {
-      // Harus terisi semua 4 atribut
       return (
         nextActionData.priority !== "" &&
         nextActionData.energy !== "" &&
         nextActionData.duration !== "" &&
         nextActionData.context !== ""
       );
+    }
+    if (selectedDest === "action_project") {
+      if (isNewProject) {
+        return (
+          projectData.newProjectName.trim() !== "" &&
+          projectData.firstNextAction.trim() !== ""
+        );
+      } else {
+        return projectData.existingProjectId !== "";
+      }
     }
     return false;
   };
@@ -290,7 +316,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                           onClick={() =>
                             !selectedDest && handleClickMenu("action")
                           }
-                          className={`flex-1 flex items-center justify-center gap-2 p-3 border rounded-xl font-medium transition-all duration-300 ${selectedDest === "quick_task" ? "bg-emerald-100 border-emerald-300 text-emerald-800 shadow-sm" : selectedDest === "next_action" ? "bg-blue-100 border-blue-300 text-blue-800 shadow-sm" : "bg-white border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700"}`}
+                          className={`flex-1 flex items-center justify-center gap-2 p-3 border rounded-xl font-medium transition-all duration-300 ${selectedDest ? "bg-blue-100 border-blue-300 text-blue-800 shadow-sm" : "bg-white border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700"}`}
                         >
                           {selectedDest === "quick_task" ? (
                             <>
@@ -302,6 +328,11 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                               <ArrowRight className="size-5" /> Jadikan Next
                               Action
                             </>
+                          ) : selectedDest === "action_project" ? (
+                            <>
+                              <FolderGit2 className="size-5" /> Masukkan ke
+                              Project
+                            </>
                           ) : (
                             <>
                               <CheckCircle2 className="size-5" /> Tindakan
@@ -311,19 +342,18 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                         {selectedDest && (
                           <button
                             onClick={resetDestination}
-                            className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors animate-in fade-in slide-in-from-right-4 duration-300"
+                            className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors"
                           >
                             <X className="size-5" />
                           </button>
                         )}
                       </div>
 
-                      {/* DROPDOWN TINDAKAN (Dikonversi menjadi DROP-UP) */}
-                      {/* Perhatikan kelas 'bottom-full mb-2 origin-bottom' untuk membalik arahnya */}
+                      {/* DROPDOWN TINDAKAN */}
                       <div
-                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-10 ${dropdownMenu === "action" ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"}`}
+                        className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-30 ${dropdownMenu === "action" ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0 pointer-events-none"}`}
                       >
-                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-emerald-100 p-2 rounded-2xl shadow-lg shadow-emerald-900/5">
+                        <div className="overflow-hidden flex flex-col gap-2 bg-white border border-emerald-100 p-2 rounded-2xl shadow-lg">
                           <button
                             onClick={() => selectDestination("quick_task")}
                             className="flex items-center gap-3 p-3 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
@@ -338,12 +368,13 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                             <ArrowRight className="size-4 text-blue-500" />{" "}
                             Jadikan Next Action
                           </button>
+                          {/* TOMBOL PROJECT DIAKTIFKAN */}
                           <button
-                            disabled
-                            className="flex items-center gap-3 p-3 w-full opacity-40 rounded-xl text-slate-600 font-medium cursor-not-allowed text-sm"
+                            onClick={() => selectDestination("action_project")}
+                            className="flex items-center gap-3 p-3 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
                           >
-                            <FolderGit2 className="size-4 text-slate-400" />{" "}
-                            Masukkan ke Project (Ditahan)
+                            <FolderGit2 className="size-4 text-indigo-500" />{" "}
+                            Masukkan ke Project
                           </button>
                         </div>
                       </div>
@@ -452,26 +483,110 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                 )}
+                {selectedDest === "action_project" && (
+                  <div className="mt-2 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-indigo-100 bg-white rounded-2xl relative z-10">
+                    {/* Switcher: Proyek Lama vs Proyek Baru */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg w-full mb-2">
+                      <button
+                        onClick={() => setIsNewProject(false)}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${!isNewProject ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        Pilih Project Aktif
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsNewProject(true);
+                          setProjectData((prev) => ({
+                            ...prev,
+                            newProjectName: localTitle,
+                          }));
+                        }}
+                        className={`flex-1 flex justify-center items-center gap-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${isNewProject ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        <Plus className="size-3" /> Buat Project Baru
+                      </button>
+                    </div>
+
+                    {!isNewProject ? (
+                      // OPSI 1: PILIH PROYEK LAMA
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] uppercase font-bold text-slate-400">
+                          Pilih dari sistem
+                        </label>
+                        <select
+                          value={projectData.existingProjectId}
+                          onChange={(e) =>
+                            setProjectData({
+                              ...projectData,
+                              existingProjectId: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl p-3 outline-none focus:border-indigo-400 text-sm font-medium"
+                        >
+                          <option value="" disabled>
+                            -- Pilih Project Aktif --
+                          </option>
+                          <option value="p1">Portofolio V2</option>
+                          <option value="p2">Riset Beasiswa 2027</option>
+                        </select>
+                      </div>
+                    ) : (
+                      // OPSI 2: BUAT PROYEK BARU
+                      <div className="flex flex-col gap-4 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold text-slate-400">
+                            Nama Project Baru
+                          </label>
+                          <input
+                            type="text"
+                            value={projectData.newProjectName}
+                            onChange={(e) =>
+                              setProjectData({
+                                ...projectData,
+                                newProjectName: e.target.value,
+                              })
+                            }
+                            placeholder="Misal: Perbaiki Rumah..."
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-400"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-between">
+                            <span>Next Action Pertama</span>
+                            <span className="text-indigo-400 font-normal lowercase tracking-normal bg-indigo-100 px-2 rounded-sm">
+                              wajib
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            value={projectData.firstNextAction}
+                            onChange={(e) =>
+                              setProjectData({
+                                ...projectData,
+                                firstNextAction: e.target.value,
+                              })
+                            }
+                            placeholder="Apa langkah fisik pertamanya?"
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* AREA TOMBOL SIMPAN & HAPUS */}
                 <div className="grid grid-cols-[1fr_auto] gap-3 mt-4 pt-4 border-t border-slate-200">
                   <button
                     disabled={!isSaveReady()}
-                    onClick={() =>
-                      console.log("Simpan", {
-                        title: localTitle,
-                        desc: localDesc,
-                        dest: selectedDest,
-                        data: nextActionData,
-                      })
-                    }
+                    onClick={() => console.log("Simpan")}
                     className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm"
                   >
                     {!selectedDest
                       ? "Pilih destinasi dulu..."
                       : !isSaveReady()
                         ? "Lengkapi data rincian..."
-                        : "Simpan Tindakan"}
+                        : "Simpan Data"}
                   </button>
                   <button className="flex items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors">
                     <Trash2 className="size-4" />
