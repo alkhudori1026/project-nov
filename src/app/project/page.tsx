@@ -5,16 +5,25 @@ import TopBar from "@/components/TopBar";
 import InboxOrganizer from "@/components/InboxOrganizer";
 import { Inbox } from "lucide-react";
 
-export default function Beranda() {
+export default function Project() {
   const [mode, setMode] = useState<"dashboard" | "clarify">("dashboard");
   const [isCaptureOpen, setCaptureOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  const onScrolling = (e: React.UIEvent<HTMLDivElement>) => {
+    // Jika guliran melewati batas 10px, anggap statusnya "sedang di-scroll"
+    setIsScrolled(e.currentTarget.scrollTop > 10);
+  };
   return (
     <div className="grid grid-rows-[1fr_10fr_1.5fr]  md:grid-cols-[1fr_16fr] md:grid-rows-[auto_1fr]  h-screen">
       {/* Nanti kita perbarui cara kerja navigasinya */}
       <Navigation />
       <TopBar />
 
-      <div className="bg-slate-100 flex-1 p-6 md:py-8 md:px-12">
+      <div
+        className="bg-slate-100 flex-1 p-6 md:py-8 md:px-12 overflow-y-auto no-scrollbar"
+        onScroll={onScrolling}
+      >
         {mode === "dashboard" ? (
           <>
             {/* Bento Layout: 60/40 split using 3fr 2fr */}
