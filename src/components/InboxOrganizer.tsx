@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   CheckCircle2,
   FolderGit2,
@@ -28,178 +28,58 @@ import {
 
 import TagPicker from "./TagPicker";
 import DurationPicker from "./DurationPicker";
-
-// =========================================
-// KONTRAK DATA FLAT (SIAP UNTUK DATABASE)
-// =========================================
-type DestinationType =
-  | "quick_task"
-  | "next_action"
-  | "action_project"
-  | "calendar"
-  | "waiting_for"
-  | "para_project"
-  | "para_area"
-  | "para_reference"
-  | null;
-
-interface InboxItem {
-  id: string;
-  title: string;
-  description: string;
-}
-
-interface ProjectItem {
-  id: string;
-  name: string;
-}
-
-interface ParaFolderItem {
-  id: string;
-  name: string;
-  category: "area" | "reference";
-}
-
-interface TaskItem {
-  id: string;
-  title: string;
-  description: string;
-  type: "quick_task" | "next_action";
-  projectId: string | null;
-  priority?: string;
-  energy?: string;
-  duration?: string;
-  context?: string;
-}
-
-interface CalendarItem {
-  id: string;
-  title: string;
-  description: string;
-  calendarType: "appointment" | "day_action" | "day_info";
-  date: string;
-  time?: string;
-}
-
-interface WaitingForItem {
-  id: string;
-  title: string;
-  description: string;
-  waitingFor: string;
-  followUpDate?: string;
-}
-
-interface NoteItem {
-  id: string;
-  title: string;
-  description: string;
-  paraCategory: "project" | "area" | "reference";
-  targetId: string;
-}
+import {
+  AppData,
+  DestinationType,
+  InboxItem,
+  ProjectItem,
+  ParaFolderItem,
+  TaskItem,
+  CalendarItem,
+  WaitingForItem,
+  NoteItem,
+} from "@/types/productivity";
 
 interface UndoSnapshot {
-  inboxQueue: InboxItem[];
-  tasks: TaskItem[];
-  calendarItems: CalendarItem[];
-  waitingForItems: WaitingForItem[];
-  notes: NoteItem[];
-  projects: ProjectItem[];
-  paraFolders: ParaFolderItem[];
+  previousData: AppData;
   selectedItemId: string | null;
   message: string;
 }
 
-export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
-  // 1. STATE ANTREAN INBOX (KOLOM 1)
-  const [inboxQueue, setInboxQueue] = useState<InboxItem[]>([
-    {
-      id: "inb-1",
-      title: "Meeting review desain bersama klien",
-      description: "Bahas revisi navigasi dan palet warna via Google Meet.",
-    },
-    {
-      id: "inb-2",
-      title: "Menunggu konfirmasi berkas pendaftaran dari kampus",
-      description: "Sudah kirim email follow-up kemarin pagi.",
-    },
-    {
-      id: "inb-3",
-      title: "Artikel arsitektur Micro-frontend",
-      description: "Referensi pola pemisahan state untuk proyek web.",
-    },
-    {
-      id: "inb-4",
-      title: "Perbaiki atap bocor",
-      description: "Bocor di atas kasur saat hujan deras.",
-    },
-  ]);
+interface InboxOrganizerProps {
+  appData: AppData;
+  onUpdateAppData: React.Dispatch<React.SetStateAction<AppData>>;
+  onClose: () => void;
+}
 
+export default function InboxOrganizer({
+  appData,
+  onUpdateAppData,
+  onClose,
+}: InboxOrganizerProps) {
+  // Ekstrak seluruh tabel data dari Single Source of Truth (page.tsx)
+  const {
+    inboxQueue,
+    projects,
+    paraFolders,
+    tasks,
+    calendarItems,
+    waitingForItems,
+    notes,
+  } = appData;
+
+  // 1. STATE SELEKSI ITEM AKTIF (KOLOM 1)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(
     inboxQueue.length > 0 ? inboxQueue[0].id : null,
   );
+
+  // Fallback otomatis ke item pertama jika selectedItemId kosong/tidak ditemukan
   const currentItem =
-    inboxQueue.find((item) => item.id === selectedItemId) || null;
+    inboxQueue.find((item) => item.id === selectedItemId) ||
+    inboxQueue[0] ||
+    null;
 
-  // 2. STATE PENYIMPANAN UTAMA / FLAT TABLES (KOLOM 3)
-  const [projects, setProjects] = useState<ProjectItem[]>([
-    { id: "p1", name: "Portofolio V2" },
-    { id: "p2", name: "Riset Beasiswa 2027" },
-  ]);
-
-  const [paraFolders, setParaFolders] = useState<ParaFolderItem[]>([
-    { id: "a1", name: "Pengembangan Karir & Coding", category: "area" },
-    { id: "a2", name: "Kesehatan & Calisthenics", category: "area" },
-    { id: "a3", name: "Keuangan Pribadi", category: "area" },
-    { id: "r1", name: "Arsitektur Software & React", category: "reference" },
-    { id: "r2", name: "Desain UI/UX & Material 3", category: "reference" },
-  ]);
-
-  const [tasks, setTasks] = useState<TaskItem[]>([
-    {
-      id: "t1",
-      title: "Tulis draf navigasi sidebar",
-      description: "",
-      type: "next_action",
-      projectId: "p1",
-      priority: "High",
-      energy: "High (Fokus Penuh)",
-      duration: "0 j 30 m",
-      context: "@Computer",
-    },
-  ]);
-
-  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([
-    {
-      id: "cal-1",
-      title: "Kirim laporan mingguan",
-      description: "",
-      calendarType: "day_action",
-      date: "2026-11-20",
-      time: "17:00",
-    },
-  ]);
-
-  const [waitingForItems, setWaitingForItems] = useState<WaitingForItem[]>([
-    {
-      id: "wait-1",
-      title: "Revisi aset ilustrasi dari desainer",
-      description: "",
-      waitingFor: "Raka (Desainer)",
-      followUpDate: "2026-11-18",
-    },
-  ]);
-
-  const [notes, setNotes] = useState<NoteItem[]>([
-    {
-      id: "n1",
-      title: "Palet warna pastel Material 3",
-      description: "Gunakan tonal surface slate untuk latar belakang.",
-      paraCategory: "project",
-      targetId: "p1",
-    },
-  ]);
-
-  // 3. STATE INPUT KOLOM 2
+  // 2. STATE INPUT LOKAL (KOLOM 2)
   const [localTitle, setLocalTitle] = useState("");
   const [localDesc, setLocalDesc] = useState("");
   const [dropdownMenu, setDropdownMenu] = useState<"action" | "idea" | null>(
@@ -246,7 +126,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     newFolderName: "",
   });
 
-  // 4. STATE KONTROL VISUAL KOLOM 3 & UNDO
+  // 3. STATE KONTROL VISUAL KOLOM 3 & UNDO
   const [storageTab, setStorageTab] = useState<"action" | "idea">("action");
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
     group_active_projects: true,
@@ -275,7 +155,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
       setLocalDesc(currentItem.description);
       resetDestination();
     }
-  }, [currentItem]);
+  }, [currentItem?.id]);
 
   // --- HELPER TOGGLE FOLDER DI KOLOM 3 ---
   const toggleFolder = (folderKey: string) => {
@@ -285,7 +165,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     }));
   };
 
-  // --- HELPER FORMAT TANGGAL RINGKAS (Contoh: "20 Nov") ---
+  // --- HELPER FORMAT TANGGAL RINGKAS ---
   const formatShortDate = (dateStr: string) => {
     if (!dateStr) return "";
     const dateObj = new Date(dateStr);
@@ -400,7 +280,6 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
 
     if (selectedDest === "calendar") {
       if (calendarData.date === "") return false;
-      // Jika Janji Temu, jam spesifik wajib diisi
       if (calendarData.calendarType === "appointment") {
         return calendarData.time !== "";
       }
@@ -425,7 +304,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   };
 
   // =========================================
-  // EKSEKUSI PEMINDAHAN DATA (KOLOM 1 -> 3)
+  // EKSEKUSI PEMINDAHAN DATA KE BRANKAS INDUK
   // =========================================
   const advanceToNextInboxItem = (
     currentId: string,
@@ -443,25 +322,28 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
   const handleCommitSave = () => {
     if (!currentItem || !selectedDest || !isSaveReady()) return;
 
+    // 1. Rekam snapshot utuh dari appData sebelum diubah
     const snapshot: UndoSnapshot = {
-      inboxQueue: [...inboxQueue],
-      tasks: [...tasks],
-      calendarItems: [...calendarItems],
-      waitingForItems: [...waitingForItems],
-      notes: [...notes],
-      projects: [...projects],
-      paraFolders: [...paraFolders],
+      previousData: {
+        inboxQueue: [...inboxQueue],
+        projects: [...projects],
+        paraFolders: [...paraFolders],
+        tasks: [...tasks],
+        calendarItems: [...calendarItems],
+        waitingForItems: [...waitingForItems],
+        notes: [...notes],
+      },
       selectedItemId: currentItem.id,
       message: `"${localTitle}" berhasil disimpan.`,
     };
 
     const timestampId = Date.now().toString();
-    let updatedProjects = [...projects];
-    let updatedParaFolders = [...paraFolders];
-    let updatedTasks = [...tasks];
-    let updatedCalendar = [...calendarItems];
-    let updatedWaiting = [...waitingForItems];
-    let updatedNotes = [...notes];
+    const updatedProjects: ProjectItem[] = [...projects];
+    const updatedParaFolders: ParaFolderItem[] = [...paraFolders];
+    const updatedTasks: TaskItem[] = [...tasks];
+    const updatedCalendar: CalendarItem[] = [...calendarItems];
+    const updatedWaiting: WaitingForItem[] = [...waitingForItems];
+    const updatedNotes: NoteItem[] = [...notes];
     const foldersToAutoOpen: Record<string, boolean> = {};
 
     if (selectedDest === "quick_task") {
@@ -471,6 +353,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
         description: localDesc.trim(),
         type: "quick_task",
         projectId: null,
+        isCompleted: false,
       });
       foldersToAutoOpen["group_general_actions"] = true;
       foldersToAutoOpen["folder_quick_tasks"] = true;
@@ -482,6 +365,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
         description: localDesc.trim(),
         type: "next_action",
         projectId: null,
+        isCompleted: false,
         ...nextActionData,
       });
       foldersToAutoOpen["group_general_actions"] = true;
@@ -506,6 +390,7 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
         description: localDesc.trim(),
         type: "next_action",
         projectId: targetProjId,
+        isCompleted: false,
       });
       foldersToAutoOpen["group_active_projects"] = true;
       foldersToAutoOpen[`gtd_proj_${targetProjId}`] = true;
@@ -581,16 +466,19 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
       (item) => item.id !== currentItem.id,
     );
 
-    setProjects(updatedProjects);
-    setParaFolders(updatedParaFolders);
-    setTasks(updatedTasks);
-    setCalendarItems(updatedCalendar);
-    setWaitingForItems(updatedWaiting);
-    setNotes(updatedNotes);
-    setInboxQueue(remainingInbox);
+    // 2. Kirim perubahan atomik ke page.tsx (otomatis tersimpan ke localStorage)
+    onUpdateAppData({
+      inboxQueue: remainingInbox,
+      projects: updatedProjects,
+      paraFolders: updatedParaFolders,
+      tasks: updatedTasks,
+      calendarItems: updatedCalendar,
+      waitingForItems: updatedWaiting,
+      notes: updatedNotes,
+    });
+
     setOpenFolders((prev) => ({ ...prev, ...foldersToAutoOpen }));
     setUndoSnapshot(snapshot);
-
     advanceToNextInboxItem(currentItem.id, remainingInbox);
   };
 
@@ -598,13 +486,15 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     if (!currentItem) return;
 
     const snapshot: UndoSnapshot = {
-      inboxQueue: [...inboxQueue],
-      tasks: [...tasks],
-      calendarItems: [...calendarItems],
-      waitingForItems: [...waitingForItems],
-      notes: [...notes],
-      projects: [...projects],
-      paraFolders: [...paraFolders],
+      previousData: {
+        inboxQueue: [...inboxQueue],
+        projects: [...projects],
+        paraFolders: [...paraFolders],
+        tasks: [...tasks],
+        calendarItems: [...calendarItems],
+        waitingForItems: [...waitingForItems],
+        notes: [...notes],
+      },
       selectedItemId: currentItem.id,
       message: `"${currentItem.title}" dihapus dari Inbox.`,
     };
@@ -612,20 +502,19 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
     const remainingInbox = inboxQueue.filter(
       (item) => item.id !== currentItem.id,
     );
-    setInboxQueue(remainingInbox);
+
+    onUpdateAppData((prev) => ({
+      ...prev,
+      inboxQueue: remainingInbox,
+    }));
+
     setUndoSnapshot(snapshot);
     advanceToNextInboxItem(currentItem.id, remainingInbox);
   };
 
   const handleUndo = () => {
     if (!undoSnapshot) return;
-    setInboxQueue(undoSnapshot.inboxQueue);
-    setTasks(undoSnapshot.tasks);
-    setCalendarItems(undoSnapshot.calendarItems);
-    setWaitingForItems(undoSnapshot.waitingForItems);
-    setNotes(undoSnapshot.notes);
-    setProjects(undoSnapshot.projects);
-    setParaFolders(undoSnapshot.paraFolders);
+    onUpdateAppData(undoSnapshot.previousData);
     setSelectedItemId(undoSnapshot.selectedItemId);
     setUndoSnapshot(null);
   };
@@ -1122,7 +1011,6 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                 {/* FORM 3: CALENDAR (GTD HARD LANDSCAPE) */}
                 {selectedDest === "calendar" && (
                   <div className="mt-2 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-rose-100 bg-white rounded-2xl relative z-10">
-                    {/* Tipe Item Kalender GTD */}
                     <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1">
                       <button
                         type="button"
@@ -1174,7 +1062,6 @@ export default function InboxOrganizer({ onClose }: { onClose: () => void }) {
                       </button>
                     </div>
 
-                    {/* Input Tanggal & Waktu */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-between">
