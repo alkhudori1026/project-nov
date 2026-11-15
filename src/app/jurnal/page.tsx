@@ -651,7 +651,7 @@ export default function Jurnals() {
         className="bg-slate-100 px-6 md:px-12 flex-1 py-4 overflow-y-auto no-scrollbar relative"
         onScroll={onScrolling}
       >
-        <div className="max-w-250 mx-auto bg-white rounded-3xl shadow-sm relative pb-4">
+        <div className="max-w-280 mx-auto bg-white rounded-3xl border border-slate-200 relative pb-4">
           {/* --- HEADER STICKY --- */}
           <header
             className={`sticky -top-4 z-30 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md transition-all duration-300 border-b ${

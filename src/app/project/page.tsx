@@ -204,11 +204,11 @@ export default function HomePage() {
       <Navigation />
       <TopBar />
 
-      <div className="bg-slate-100 flex-1 overflow-y-auto relative">
+      <div className="bg-slate-100 flex-1 overflow-y-auto relative no-scrollbar">
         {mode === "dashboard" ? (
           /* LAYAR 1: BENTO BOX 60/40 (DASHBOARD) */
           <div className="p-4 md:p-8">
-            <div className="max-w-[1600px] mx-auto mb-6 flex justify-end">
+            <div className="max-w-300 mx-auto mb-6 flex justify-end">
               <button
                 onClick={() => setMode("clarify")}
                 className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-colors"
@@ -218,7 +218,7 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-4 md:gap-6 max-w-[1600px] mx-auto min-h-[82vh]">
+            <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-4 md:gap-6 max-w-300 mx-auto min-h-[82vh]">
               {/* ========================================= */}
               {/* ZONA 60% KIRI: TAKE ACTION */}
               {/* ========================================= */}

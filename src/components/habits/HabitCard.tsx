@@ -81,8 +81,8 @@ export default function HabitCard({
     <div
       className={`rounded-2xl border transition ${
         isShadowing
-          ? "border-slate-200 bg-slate-50/80"
-          : "border-slate-200 bg-white shadow-2xs"
+          ? "border-slate-200 bg-white/80"
+          : "border-slate-200 bg-slate-50 shadow-2xs"
       }`}
     >
       {/* Baris Utama Kartu */}
@@ -97,7 +97,7 @@ export default function HabitCard({
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition cursor-pointer ${
                 todayLog
                   ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-slate-300 bg-slate-50 text-transparent hover:border-blue-400"
+                  : "border-slate-200 bg-white text-transparent hover:border-blue-400"
               }`}
             >
               <Check className="h-4 w-4 stroke-[2.5]" />
