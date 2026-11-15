@@ -1,6 +1,8 @@
+// src/components/project/InboxOrganizer.tsx
+
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   CheckCircle2,
   FolderGit2,
@@ -16,48 +18,51 @@ import {
   AlertCircle,
   Plus,
   Layers,
-  ChevronRight,
-  Folder,
-  FolderOpen,
   Undo2,
-  Zap,
   Calendar as CalendarIcon,
   Hourglass,
   UserCheck,
 } from "lucide-react";
 
-import TagPicker from "./TagPicker";
-import DurationPicker from "./DurationPicker";
+import TagPicker from "../TagPicker";
+import DurationPicker from "../DurationPicker";
+import InboxStorageExplorer from "./InboxStorageExplorer";
 import {
   AppData,
+  CalendarFormData,
   DestinationType,
+  GtdProjectFormData,
   InboxItem,
-  ProjectItem,
-  ParaFolderItem,
-  TaskItem,
-  CalendarItem,
-  WaitingForItem,
-  NoteItem,
+  InboxSortPayload,
+  NextActionFormData,
+  ParaFolderFormData,
+  UndoSnapshot,
+  WaitingForFormData,
 } from "@/types/productivity";
-
-interface UndoSnapshot {
-  previousData: AppData;
-  selectedItemId: string | null;
-  message: string;
-}
+import { InboxSortResult, isInboxSortReady } from "@/utils/projectHelpers";
 
 interface InboxOrganizerProps {
   appData: AppData;
-  onUpdateAppData: React.Dispatch<React.SetStateAction<AppData>>;
+  onSortItem: (
+    targetItemId: string,
+    payload: InboxSortPayload,
+  ) => InboxSortResult;
+  onTrashItem: (targetItemId: string) => void;
+  onRestoreSnapshot: (previousData: AppData) => void;
   onClose: () => void;
 }
 
+const PRIORITY_OPTIONS = ["High", "Med", "Low"];
+const ENERGY_OPTIONS = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
+const CONTEXT_OPTIONS = ["@Computer", "@Home", "@Phone", "@Office", "@Errands"];
+
 export default function InboxOrganizer({
   appData,
-  onUpdateAppData,
+  onSortItem,
+  onTrashItem,
+  onRestoreSnapshot,
   onClose,
 }: InboxOrganizerProps) {
-  // Ekstrak seluruh tabel data dari Single Source of Truth (page.tsx)
   const {
     inboxQueue,
     projects,
@@ -73,7 +78,6 @@ export default function InboxOrganizer({
     inboxQueue.length > 0 ? inboxQueue[0].id : null,
   );
 
-  // Fallback otomatis ke item pertama jika selectedItemId kosong/tidak ditemukan
   const currentItem =
     inboxQueue.find((item) => item.id === selectedItemId) ||
     inboxQueue[0] ||
@@ -87,8 +91,7 @@ export default function InboxOrganizer({
   );
   const [selectedDest, setSelectedDest] = useState<DestinationType>(null);
 
-  // Parameter Form GTD
-  const [nextActionData, setNextActionData] = useState({
+  const [nextActionData, setNextActionData] = useState<NextActionFormData>({
     priority: "",
     energy: "",
     duration: "",
@@ -96,32 +99,25 @@ export default function InboxOrganizer({
   });
 
   const [isNewGtdProject, setIsNewGtdProject] = useState(false);
-  const [gtdProjectData, setGtdProjectData] = useState({
+  const [gtdProjectData, setGtdProjectData] = useState<GtdProjectFormData>({
     existingProjectId: "",
     newProjectName: "",
     firstNextAction: "",
   });
 
-  // Parameter Form Calendar
-  const [calendarData, setCalendarData] = useState<{
-    calendarType: "appointment" | "day_action" | "day_info";
-    date: string;
-    time: string;
-  }>({
+  const [calendarData, setCalendarData] = useState<CalendarFormData>({
     calendarType: "appointment",
     date: "",
     time: "",
   });
 
-  // Parameter Form Waiting For
-  const [waitingData, setWaitingData] = useState({
+  const [waitingData, setWaitingData] = useState<WaitingForFormData>({
     waitingFor: "",
     followUpDate: "",
   });
 
-  // Parameter Form PARA
   const [isNewParaFolder, setIsNewParaFolder] = useState(false);
-  const [paraFolderData, setParaFolderData] = useState({
+  const [paraFolderData, setParaFolderData] = useState<ParaFolderFormData>({
     selectedFolderId: "",
     newFolderName: "",
   });
@@ -137,16 +133,6 @@ export default function InboxOrganizer({
   });
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
 
-  const priorityOptions = ["High", "Med", "Low"];
-  const energyOptions = ["High (Fokus Penuh)", "Low (Admin Ringan)"];
-  const contextOptions = [
-    "@Computer",
-    "@Home",
-    "@Phone",
-    "@Office",
-    "@Errands",
-  ];
-
   const hoverTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -157,22 +143,11 @@ export default function InboxOrganizer({
     }
   }, [currentItem?.id]);
 
-  // --- HELPER TOGGLE FOLDER DI KOLOM 3 ---
   const toggleFolder = (folderKey: string) => {
     setOpenFolders((prev) => ({
       ...prev,
       [folderKey]: !prev[folderKey],
     }));
-  };
-
-  // --- HELPER FORMAT TANGGAL RINGKAS ---
-  const formatShortDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const dateObj = new Date(dateStr);
-    return dateObj.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-    });
   };
 
   // --- KONTROL MENU DROP-UP KOLOM 2 ---
@@ -231,7 +206,10 @@ export default function InboxOrganizer({
     setParaFolderData({ selectedFolderId: "", newFolderName: "" });
   };
 
-  const handleCreateCustomTag = (category: string, newValue: string) => {
+  const handleCreateCustomTag = (
+    category: keyof NextActionFormData,
+    newValue: string,
+  ) => {
     setNextActionData((prev) => ({ ...prev, [category]: newValue }));
   };
 
@@ -257,55 +235,19 @@ export default function InboxOrganizer({
     };
   };
 
-  // --- VALIDASI KELENGKAPAN FORM ---
-  const isSaveReady = () => {
-    if (!selectedDest || localTitle.trim() === "") return false;
-    if (selectedDest === "quick_task") return true;
+  const saveReady = isInboxSortReady({
+    title: localTitle,
+    description: localDesc,
+    destination: selectedDest,
+    nextActionData,
+    isNewGtdProject,
+    gtdProjectData,
+    calendarData,
+    waitingData,
+    isNewParaFolder,
+    paraFolderData,
+  });
 
-    if (selectedDest === "next_action") {
-      return (
-        nextActionData.priority !== "" &&
-        nextActionData.energy !== "" &&
-        nextActionData.duration !== "" &&
-        nextActionData.context !== ""
-      );
-    }
-
-    if (selectedDest === "action_project") {
-      return isNewGtdProject
-        ? gtdProjectData.newProjectName.trim() !== "" &&
-            gtdProjectData.firstNextAction.trim() !== ""
-        : gtdProjectData.existingProjectId !== "";
-    }
-
-    if (selectedDest === "calendar") {
-      if (calendarData.date === "") return false;
-      if (calendarData.calendarType === "appointment") {
-        return calendarData.time !== "";
-      }
-      return true;
-    }
-
-    if (selectedDest === "waiting_for") {
-      return waitingData.waitingFor.trim() !== "";
-    }
-
-    if (
-      selectedDest === "para_project" ||
-      selectedDest === "para_area" ||
-      selectedDest === "para_reference"
-    ) {
-      return isNewParaFolder
-        ? paraFolderData.newFolderName.trim() !== ""
-        : paraFolderData.selectedFolderId !== "";
-    }
-
-    return false;
-  };
-
-  // =========================================
-  // EKSEKUSI PEMINDAHAN DATA KE BRANKAS INDUK
-  // =========================================
   const advanceToNextInboxItem = (
     currentId: string,
     updatedQueue: InboxItem[],
@@ -320,9 +262,8 @@ export default function InboxOrganizer({
   };
 
   const handleCommitSave = () => {
-    if (!currentItem || !selectedDest || !isSaveReady()) return;
+    if (!currentItem || !selectedDest || !saveReady) return;
 
-    // 1. Rekam snapshot utuh dari appData sebelum diubah
     const snapshot: UndoSnapshot = {
       previousData: {
         inboxQueue: [...inboxQueue],
@@ -337,149 +278,23 @@ export default function InboxOrganizer({
       message: `"${localTitle}" berhasil disimpan.`,
     };
 
-    const timestampId = Date.now().toString();
-    const updatedProjects: ProjectItem[] = [...projects];
-    const updatedParaFolders: ParaFolderItem[] = [...paraFolders];
-    const updatedTasks: TaskItem[] = [...tasks];
-    const updatedCalendar: CalendarItem[] = [...calendarItems];
-    const updatedWaiting: WaitingForItem[] = [...waitingForItems];
-    const updatedNotes: NoteItem[] = [...notes];
-    const foldersToAutoOpen: Record<string, boolean> = {};
-
-    if (selectedDest === "quick_task") {
-      updatedTasks.push({
-        id: `task-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        type: "quick_task",
-        projectId: null,
-        isCompleted: false,
-      });
-      foldersToAutoOpen["group_general_actions"] = true;
-      foldersToAutoOpen["folder_quick_tasks"] = true;
-      setStorageTab("action");
-    } else if (selectedDest === "next_action") {
-      updatedTasks.push({
-        id: `task-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        type: "next_action",
-        projectId: null,
-        isCompleted: false,
-        ...nextActionData,
-      });
-      foldersToAutoOpen["group_general_actions"] = true;
-      foldersToAutoOpen["folder_next_actions"] = true;
-      setStorageTab("action");
-    } else if (selectedDest === "action_project") {
-      let targetProjId = gtdProjectData.existingProjectId;
-      let taskTitleToSave = localTitle.trim();
-
-      if (isNewGtdProject) {
-        targetProjId = `proj-${timestampId}`;
-        updatedProjects.push({
-          id: targetProjId,
-          name: gtdProjectData.newProjectName.trim(),
-        });
-        taskTitleToSave = gtdProjectData.firstNextAction.trim();
-      }
-
-      updatedTasks.push({
-        id: `task-${timestampId}`,
-        title: taskTitleToSave,
-        description: localDesc.trim(),
-        type: "next_action",
-        projectId: targetProjId,
-        isCompleted: false,
-      });
-      foldersToAutoOpen["group_active_projects"] = true;
-      foldersToAutoOpen[`gtd_proj_${targetProjId}`] = true;
-      setStorageTab("action");
-    } else if (selectedDest === "calendar") {
-      updatedCalendar.push({
-        id: `cal-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        calendarType: calendarData.calendarType,
-        date: calendarData.date,
-        time: calendarData.time || undefined,
-      });
-      foldersToAutoOpen["group_calendar"] = true;
-      setStorageTab("action");
-    } else if (selectedDest === "waiting_for") {
-      updatedWaiting.push({
-        id: `wait-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        waitingFor: waitingData.waitingFor.trim(),
-        followUpDate: waitingData.followUpDate || undefined,
-      });
-      foldersToAutoOpen["group_waiting_for"] = true;
-      setStorageTab("action");
-    } else if (selectedDest === "para_project") {
-      let targetProjId = paraFolderData.selectedFolderId;
-      if (isNewParaFolder) {
-        targetProjId = `proj-${timestampId}`;
-        updatedProjects.push({
-          id: targetProjId,
-          name: paraFolderData.newFolderName.trim(),
-        });
-      }
-      updatedNotes.push({
-        id: `note-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        paraCategory: "project",
-        targetId: targetProjId,
-      });
-      foldersToAutoOpen["group_para_project"] = true;
-      foldersToAutoOpen[`para_proj_${targetProjId}`] = true;
-      setStorageTab("idea");
-    } else if (
-      selectedDest === "para_area" ||
-      selectedDest === "para_reference"
-    ) {
-      const category = selectedDest === "para_area" ? "area" : "reference";
-      let targetFolderId = paraFolderData.selectedFolderId;
-
-      if (isNewParaFolder) {
-        targetFolderId = `${category}-${timestampId}`;
-        updatedParaFolders.push({
-          id: targetFolderId,
-          name: paraFolderData.newFolderName.trim(),
-          category,
-        });
-      }
-      updatedNotes.push({
-        id: `note-${timestampId}`,
-        title: localTitle.trim(),
-        description: localDesc.trim(),
-        paraCategory: category,
-        targetId: targetFolderId,
-      });
-      foldersToAutoOpen[`group_para_${category}`] = true;
-      foldersToAutoOpen[`para_folder_${targetFolderId}`] = true;
-      setStorageTab("idea");
-    }
-
-    const remainingInbox = inboxQueue.filter(
-      (item) => item.id !== currentItem.id,
-    );
-
-    // 2. Kirim perubahan atomik ke page.tsx (otomatis tersimpan ke localStorage)
-    onUpdateAppData({
-      inboxQueue: remainingInbox,
-      projects: updatedProjects,
-      paraFolders: updatedParaFolders,
-      tasks: updatedTasks,
-      calendarItems: updatedCalendar,
-      waitingForItems: updatedWaiting,
-      notes: updatedNotes,
+    const result = onSortItem(currentItem.id, {
+      title: localTitle,
+      description: localDesc,
+      destination: selectedDest,
+      nextActionData,
+      isNewGtdProject,
+      gtdProjectData,
+      calendarData,
+      waitingData,
+      isNewParaFolder,
+      paraFolderData,
     });
 
-    setOpenFolders((prev) => ({ ...prev, ...foldersToAutoOpen }));
+    setStorageTab(result.targetStorageTab);
+    setOpenFolders((prev) => ({ ...prev, ...result.foldersToAutoOpen }));
     setUndoSnapshot(snapshot);
-    advanceToNextInboxItem(currentItem.id, remainingInbox);
+    advanceToNextInboxItem(currentItem.id, result.nextData.inboxQueue);
   };
 
   const handleTrashItem = () => {
@@ -503,34 +318,17 @@ export default function InboxOrganizer({
       (item) => item.id !== currentItem.id,
     );
 
-    onUpdateAppData((prev) => ({
-      ...prev,
-      inboxQueue: remainingInbox,
-    }));
-
+    onTrashItem(currentItem.id);
     setUndoSnapshot(snapshot);
     advanceToNextInboxItem(currentItem.id, remainingInbox);
   };
 
   const handleUndo = () => {
     if (!undoSnapshot) return;
-    onUpdateAppData(undoSnapshot.previousData);
+    onRestoreSnapshot(undoSnapshot.previousData);
     setSelectedItemId(undoSnapshot.selectedItemId);
     setUndoSnapshot(null);
   };
-
-  // --- DATA TURUNAN UNTUK RENDER KOLOM 3 ---
-  const standaloneNextActions = tasks.filter(
-    (t) => t.type === "next_action" && t.projectId === null,
-  );
-  const quickTasks = tasks.filter((t) => t.type === "quick_task");
-  const areaFolders = paraFolders.filter((f) => f.category === "area");
-  const referenceFolders = paraFolders.filter(
-    (f) => f.category === "reference",
-  );
-
-  const totalActionCount =
-    tasks.length + calendarItems.length + waitingForItems.length;
 
   const isActionSelected =
     selectedDest === "quick_task" ||
@@ -554,6 +352,7 @@ export default function InboxOrganizer({
           <Inbox className="size-6 text-blue-600" /> Mode Sortir
         </h1>
         <button
+          type="button"
           onClick={onClose}
           className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-medium hover:bg-slate-50 transition-colors shadow-sm"
         >
@@ -563,9 +362,7 @@ export default function InboxOrganizer({
 
       {/* GRID 3 KOLOM */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_1.15fr] gap-6 max-w-[1600px] w-full mx-auto flex-1 p-4 md:p-8 pt-0">
-        {/* ========================================= */}
         {/* KOLOM 1: DRAFT CATATAN */}
-        {/* ========================================= */}
         <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 flex flex-col gap-5 max-h-[85vh] overflow-hidden">
           <h2 className="font-semibold text-slate-500 uppercase tracking-widest text-sm flex justify-between items-center">
             Draft Catatan{" "}
@@ -613,9 +410,7 @@ export default function InboxOrganizer({
           </div>
         </div>
 
-        {/* ========================================= */}
         {/* KOLOM 2: MEJA INSPEKSI & EKSEKUSI */}
-        {/* ========================================= */}
         <div className="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col relative max-h-[85vh] overflow-y-auto custom-scrollbar">
           {currentItem ? (
             <>
@@ -648,7 +443,7 @@ export default function InboxOrganizer({
                 </p>
 
                 <div className="flex flex-wrap gap-3 w-full relative">
-                  {/* --- SISI KIRI: TINDAKAN (GTD) --- */}
+                  {/* SISI KIRI: TINDAKAN (GTD) */}
                   {(!selectedDest || isActionSelected) && (
                     <div
                       className={`relative flex flex-col flex-1 ${
@@ -659,6 +454,7 @@ export default function InboxOrganizer({
                     >
                       <div className="flex gap-2 w-full">
                         <button
+                          type="button"
                           onClick={() =>
                             !selectedDest && handleClickMenu("action")
                           }
@@ -701,6 +497,7 @@ export default function InboxOrganizer({
                         </button>
                         {isActionSelected && (
                           <button
+                            type="button"
                             onClick={resetDestination}
                             className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors"
                           >
@@ -709,7 +506,7 @@ export default function InboxOrganizer({
                         )}
                       </div>
 
-                      {/* DROP-UP TINDAKAN (5 Opsi GTD) */}
+                      {/* DROP-UP TINDAKAN */}
                       <div
                         className={`w-full grid transition-all duration-300 ease-out origin-bottom absolute bottom-full left-0 z-30 ${
                           dropdownMenu === "action"
@@ -719,6 +516,7 @@ export default function InboxOrganizer({
                       >
                         <div className="overflow-hidden flex flex-col gap-1.5 bg-white border border-emerald-100 p-2 rounded-2xl shadow-lg">
                           <button
+                            type="button"
                             onClick={() => selectDestination("quick_task")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
                           >
@@ -726,6 +524,7 @@ export default function InboxOrganizer({
                             Ringan (&lt; 2m)
                           </button>
                           <button
+                            type="button"
                             onClick={() => selectDestination("next_action")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
                           >
@@ -733,6 +532,7 @@ export default function InboxOrganizer({
                             Jadikan Next Action
                           </button>
                           <button
+                            type="button"
                             onClick={() => selectDestination("action_project")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
                           >
@@ -741,6 +541,7 @@ export default function InboxOrganizer({
                           </button>
                           <div className="border-t border-slate-100 my-0.5" />
                           <button
+                            type="button"
                             onClick={() => selectDestination("calendar")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-rose-50 rounded-xl text-slate-600 hover:text-rose-700 font-medium transition-colors text-sm"
                           >
@@ -748,6 +549,7 @@ export default function InboxOrganizer({
                             Jadwalkan di Calendar
                           </button>
                           <button
+                            type="button"
                             onClick={() => selectDestination("waiting_for")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-amber-50 rounded-xl text-slate-600 hover:text-amber-700 font-medium transition-colors text-sm"
                           >
@@ -759,7 +561,7 @@ export default function InboxOrganizer({
                     </div>
                   )}
 
-                  {/* --- SISI KANAN: IDE (PARA) --- */}
+                  {/* SISI KANAN: IDE (PARA) */}
                   {(!selectedDest || isIdeaSelected) && (
                     <div
                       className={`relative flex flex-col flex-1 ${
@@ -770,6 +572,7 @@ export default function InboxOrganizer({
                     >
                       <div className="flex gap-2 w-full">
                         <button
+                          type="button"
                           onClick={() =>
                             !selectedDest && handleClickMenu("idea")
                           }
@@ -801,6 +604,7 @@ export default function InboxOrganizer({
                         </button>
                         {isIdeaSelected && (
                           <button
+                            type="button"
                             onClick={resetDestination}
                             className="p-3 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-xl transition-colors"
                           >
@@ -819,6 +623,7 @@ export default function InboxOrganizer({
                       >
                         <div className="overflow-hidden flex flex-col gap-1.5 bg-white border border-indigo-100 p-2 rounded-2xl shadow-lg">
                           <button
+                            type="button"
                             onClick={() => selectDestination("para_project")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-indigo-50 rounded-xl text-slate-600 hover:text-indigo-700 font-medium transition-colors text-sm"
                           >
@@ -826,6 +631,7 @@ export default function InboxOrganizer({
                             Kirim ke Project
                           </button>
                           <button
+                            type="button"
                             onClick={() => selectDestination("para_area")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-emerald-50 rounded-xl text-slate-600 hover:text-emerald-700 font-medium transition-colors text-sm"
                           >
@@ -833,6 +639,7 @@ export default function InboxOrganizer({
                             ke Area
                           </button>
                           <button
+                            type="button"
                             onClick={() => selectDestination("para_reference")}
                             className="flex items-center gap-3 p-2.5 w-full hover:bg-amber-50 rounded-xl text-slate-600 hover:text-amber-700 font-medium transition-colors text-sm"
                           >
@@ -853,7 +660,7 @@ export default function InboxOrganizer({
                         <AlertCircle className="size-3" /> Prioritas
                       </label>
                       <TagPicker
-                        daftarTag={priorityOptions}
+                        daftarTag={PRIORITY_OPTIONS}
                         tagTerpilih={nextActionData.priority}
                         onPilihTag={(t) =>
                           setNextActionData({ ...nextActionData, priority: t })
@@ -868,7 +675,7 @@ export default function InboxOrganizer({
                         <Battery className="size-3" /> Energi
                       </label>
                       <TagPicker
-                        daftarTag={energyOptions}
+                        daftarTag={ENERGY_OPTIONS}
                         tagTerpilih={nextActionData.energy}
                         onPilihTag={(t) =>
                           setNextActionData({ ...nextActionData, energy: t })
@@ -894,7 +701,7 @@ export default function InboxOrganizer({
                         <Tag className="size-3" /> Konteks
                       </label>
                       <TagPicker
-                        daftarTag={contextOptions}
+                        daftarTag={CONTEXT_OPTIONS}
                         tagTerpilih={nextActionData.context}
                         onPilihTag={(t) =>
                           setNextActionData({ ...nextActionData, context: t })
@@ -912,6 +719,7 @@ export default function InboxOrganizer({
                   <div className="mt-2 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-emerald-100 bg-white rounded-2xl relative z-10">
                     <div className="flex bg-slate-100 p-1 rounded-lg w-full mb-1">
                       <button
+                        type="button"
                         onClick={() => setIsNewGtdProject(false)}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                           !isNewGtdProject
@@ -922,6 +730,7 @@ export default function InboxOrganizer({
                         Pilih Project Aktif
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setIsNewGtdProject(true);
                           setGtdProjectData((prev) => ({
@@ -1165,6 +974,7 @@ export default function InboxOrganizer({
                   <div className="mt-2 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300 p-4 border border-indigo-100 bg-white rounded-2xl relative z-10">
                     <div className="flex bg-slate-100 p-1 rounded-lg w-full mb-1">
                       <button
+                        type="button"
                         onClick={() => setIsNewParaFolder(false)}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                           !isNewParaFolder
@@ -1175,6 +985,7 @@ export default function InboxOrganizer({
                         Pilih {paraConfig.label}
                       </button>
                       <button
+                        type="button"
                         onClick={() => setIsNewParaFolder(true)}
                         className={`flex-1 flex justify-center items-center gap-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                           isNewParaFolder
@@ -1237,17 +1048,19 @@ export default function InboxOrganizer({
                 {/* AREA TOMBOL SIMPAN & HAPUS */}
                 <div className="grid grid-cols-[1fr_auto] gap-3 mt-4 pt-4 border-t border-slate-200">
                   <button
-                    disabled={!isSaveReady()}
+                    type="button"
+                    disabled={!saveReady}
                     onClick={handleCommitSave}
                     className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm"
                   >
                     {!selectedDest
                       ? "Pilih destinasi dulu..."
-                      : !isSaveReady()
+                      : !saveReady
                         ? "Lengkapi data rincian..."
                         : "Simpan Data"}
                   </button>
                   <button
+                    type="button"
                     onClick={handleTrashItem}
                     title="Hapus catatan ini"
                     className="flex items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors"
@@ -1270,690 +1083,34 @@ export default function InboxOrganizer({
           )}
         </div>
 
-        {/* ========================================= */}
         {/* KOLOM 3: TEMPAT PENYIMPANAN (FILE EXPLORER M3) */}
-        {/* ========================================= */}
-        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-5 flex flex-col gap-4 max-h-[85vh] overflow-hidden">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="font-semibold text-slate-500 uppercase tracking-widest text-xs">
-              Penyimpanan
-            </h2>
-          </div>
-
-          {/* SEGMENTED CONTROL (TAB SWITCHER) */}
-          <div className="grid grid-cols-2 bg-slate-200/70 p-1 rounded-2xl">
-            <button
-              onClick={() => setStorageTab("action")}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                storageTab === "action"
-                  ? "bg-white text-emerald-700 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <CheckCircle2 className="size-3.5" />
-              <span>Tindakan</span>
-              <span className="ml-0.5 text-[10px] opacity-75">
-                ({totalActionCount})
-              </span>
-            </button>
-            <button
-              onClick={() => setStorageTab("idea")}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                storageTab === "idea"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <BookOpen className="size-3.5" />
-              <span>Ide (PARA)</span>
-              <span className="ml-0.5 text-[10px] opacity-75">
-                ({notes.length})
-              </span>
-            </button>
-          </div>
-
-          {/* KONTEN EXPLORER (SCROLLABLE) */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
-            {storageTab === "action" ? (
-              /* ===================================== */
-              /* TAB 1: GUDANG TINDAKAN (GTD) */
-              /* ===================================== */
-              <>
-                {/* GRUP 1: PROJEK AKTIF */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_active_projects")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
-                      <ChevronRight
-                        className={`size-3.5 text-slate-400 transition-transform duration-200 ${
-                          openFolders["group_active_projects"]
-                            ? "rotate-90"
-                            : ""
-                        }`}
-                      />
-                      Projek Aktif
-                    </span>
-                    <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
-                      {projects.length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_active_projects"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-slate-100 ml-2">
-                      {projects.map((proj) => {
-                        const projectTasks = tasks.filter(
-                          (t) => t.projectId === proj.id,
-                        );
-                        const folderKey = `gtd_proj_${proj.id}`;
-                        const isOpen = !!openFolders[folderKey];
-
-                        return (
-                          <div key={proj.id} className="flex flex-col">
-                            <button
-                              onClick={() => toggleFolder(folderKey)}
-                              className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                            >
-                              <span className="flex items-center gap-2 min-w-0">
-                                {isOpen ? (
-                                  <FolderOpen className="size-4 text-emerald-600 shrink-0" />
-                                ) : (
-                                  <Folder className="size-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                                )}
-                                <span
-                                  title={proj.name}
-                                  className="text-xs font-medium text-slate-700 truncate"
-                                >
-                                  {proj.name}
-                                </span>
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-400 ml-2 shrink-0">
-                                {projectTasks.length}
-                              </span>
-                            </button>
-
-                            <div
-                              className={`grid transition-all duration-200 ease-out ${
-                                isOpen
-                                  ? "grid-rows-[1fr] mt-1"
-                                  : "grid-rows-[0fr]"
-                              }`}
-                            >
-                              <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-emerald-200/70 ml-3.5">
-                                {projectTasks.length === 0 ? (
-                                  <span className="text-[11px] text-slate-400 italic py-1">
-                                    Belum ada tindakan
-                                  </span>
-                                ) : (
-                                  projectTasks.map((task) => (
-                                    <div
-                                      key={task.id}
-                                      title={task.title}
-                                      className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-emerald-50/50 text-xs text-slate-600"
-                                    >
-                                      <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                      <span className="truncate">
-                                        {task.title}
-                                      </span>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* GRUP 2: TINDAKAN UMUM (Next Action & Tugas Ringan) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_general_actions")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
-                      <ChevronRight
-                        className={`size-3.5 text-slate-400 transition-transform duration-200 ${
-                          openFolders["group_general_actions"]
-                            ? "rotate-90"
-                            : ""
-                        }`}
-                      />
-                      Tindakan
-                    </span>
-                    <span className="text-[11px] font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                      {standaloneNextActions.length + quickTasks.length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_general_actions"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-slate-100 ml-2">
-                      {/* Folder 1: Next Action Biasa */}
-                      <div className="flex flex-col">
-                        <button
-                          onClick={() => toggleFolder("folder_next_actions")}
-                          className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                        >
-                          <span className="flex items-center gap-2 min-w-0">
-                            {openFolders["folder_next_actions"] ? (
-                              <FolderOpen className="size-4 text-blue-600 shrink-0" />
-                            ) : (
-                              <Folder className="size-4 text-slate-400 group-hover:text-blue-600 shrink-0" />
-                            )}
-                            <span className="text-xs font-medium text-slate-700 truncate">
-                              Next Action
-                            </span>
-                          </span>
-                          <span className="text-[10px] font-semibold text-slate-400 ml-2">
-                            {standaloneNextActions.length}
-                          </span>
-                        </button>
-
-                        <div
-                          className={`grid transition-all duration-200 ease-out ${
-                            openFolders["folder_next_actions"]
-                              ? "grid-rows-[1fr] mt-1"
-                              : "grid-rows-[0fr]"
-                          }`}
-                        >
-                          <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-blue-200/70 ml-3.5">
-                            {standaloneNextActions.length === 0 ? (
-                              <span className="text-[11px] text-slate-400 italic py-1">
-                                Kosong
-                              </span>
-                            ) : (
-                              standaloneNextActions.map((task) => (
-                                <div
-                                  key={task.id}
-                                  title={task.title}
-                                  className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-blue-50/50 text-xs text-slate-600"
-                                >
-                                  <span className="size-1.5 rounded-full bg-blue-400 shrink-0" />
-                                  <span className="truncate">{task.title}</span>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Folder 2: Tugas Ringan (< 2m) */}
-                      <div className="flex flex-col">
-                        <button
-                          onClick={() => toggleFolder("folder_quick_tasks")}
-                          className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                        >
-                          <span className="flex items-center gap-2 min-w-0">
-                            <Zap className="size-4 text-amber-500 shrink-0" />
-                            <span className="text-xs font-medium text-slate-700 truncate">
-                              Tugas Ringan (&lt; 2m)
-                            </span>
-                          </span>
-                          <span className="text-[10px] font-semibold text-slate-400 ml-2">
-                            {quickTasks.length}
-                          </span>
-                        </button>
-
-                        <div
-                          className={`grid transition-all duration-200 ease-out ${
-                            openFolders["folder_quick_tasks"]
-                              ? "grid-rows-[1fr] mt-1"
-                              : "grid-rows-[0fr]"
-                          }`}
-                        >
-                          <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-amber-200/70 ml-3.5">
-                            {quickTasks.length === 0 ? (
-                              <span className="text-[11px] text-slate-400 italic py-1">
-                                Kosong
-                              </span>
-                            ) : (
-                              quickTasks.map((task) => (
-                                <div
-                                  key={task.id}
-                                  title={task.title}
-                                  className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-amber-50/50 text-xs text-slate-600"
-                                >
-                                  <span className="size-1.5 rounded-full bg-amber-400 shrink-0" />
-                                  <span className="truncate">{task.title}</span>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* GRUP 3: CALENDAR (HARD LANDSCAPE) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_calendar")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-700">
-                      <ChevronRight
-                        className={`size-3.5 text-rose-400 transition-transform duration-200 ${
-                          openFolders["group_calendar"] ? "rotate-90" : ""
-                        }`}
-                      />
-                      Calendar
-                    </span>
-                    <span className="text-[11px] font-semibold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full">
-                      {calendarItems.length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_calendar"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-rose-100 ml-2">
-                      {calendarItems.length === 0 ? (
-                        <span className="text-[11px] text-slate-400 italic py-1 px-2">
-                          Belum ada jadwal
-                        </span>
-                      ) : (
-                        calendarItems.map((cal) => (
-                          <div
-                            key={cal.id}
-                            title={`${cal.title} (${cal.date}${
-                              cal.time ? ` • ${cal.time}` : ""
-                            })`}
-                            className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-xl hover:bg-rose-50/50 text-xs text-slate-700"
-                          >
-                            <span className="flex items-center gap-2 min-w-0">
-                              <CalendarIcon className="size-3.5 text-rose-500 shrink-0" />
-                              <span className="truncate">{cal.title}</span>
-                            </span>
-                            <span className="text-[10px] font-semibold bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded shrink-0">
-                              {formatShortDate(cal.date)}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* GRUP 4: WAITING FOR (DELEGASI) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_waiting_for")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700">
-                      <ChevronRight
-                        className={`size-3.5 text-amber-400 transition-transform duration-200 ${
-                          openFolders["group_waiting_for"] ? "rotate-90" : ""
-                        }`}
-                      />
-                      Waiting For
-                    </span>
-                    <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                      {waitingForItems.length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_waiting_for"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-amber-100 ml-2">
-                      {waitingForItems.length === 0 ? (
-                        <span className="text-[11px] text-slate-400 italic py-1 px-2">
-                          Tidak ada yang ditunggu
-                        </span>
-                      ) : (
-                        waitingForItems.map((wait) => (
-                          <div
-                            key={wait.id}
-                            title={`${wait.title} — Menunggu: ${wait.waitingFor}`}
-                            className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-xl hover:bg-amber-50/50 text-xs text-slate-700"
-                          >
-                            <span className="flex items-center gap-2 min-w-0">
-                              <Hourglass className="size-3.5 text-amber-500 shrink-0" />
-                              <span className="truncate">{wait.title}</span>
-                            </span>
-                            <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded shrink-0 max-w-[85px] truncate">
-                              @{wait.waitingFor}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* ===================================== */
-              /* TAB 2: GUDANG IDE / SECOND BRAIN (PARA) */
-              /* ===================================== */
-              <>
-                {/* FOLDER 1: PROJECT (PARA) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_para_project")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
-                      <ChevronRight
-                        className={`size-3.5 text-indigo-400 transition-transform duration-200 ${
-                          openFolders["group_para_project"] ? "rotate-90" : ""
-                        }`}
-                      />
-                      Project
-                    </span>
-                    <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-                      {notes.filter((n) => n.paraCategory === "project").length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_para_project"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-indigo-100 ml-2">
-                      {projects.map((proj) => {
-                        const projectNotes = notes.filter(
-                          (n) =>
-                            n.paraCategory === "project" &&
-                            n.targetId === proj.id,
-                        );
-                        const folderKey = `para_proj_${proj.id}`;
-                        const isOpen = !!openFolders[folderKey];
-
-                        return (
-                          <div key={proj.id} className="flex flex-col">
-                            <button
-                              onClick={() => toggleFolder(folderKey)}
-                              className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                            >
-                              <span className="flex items-center gap-2 min-w-0">
-                                {isOpen ? (
-                                  <FolderOpen className="size-4 text-indigo-600 shrink-0" />
-                                ) : (
-                                  <Folder className="size-4 text-slate-400 group-hover:text-indigo-600 shrink-0" />
-                                )}
-                                <span
-                                  title={proj.name}
-                                  className="text-xs font-medium text-slate-700 truncate"
-                                >
-                                  {proj.name}
-                                </span>
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-400 ml-2 shrink-0">
-                                {projectNotes.length}
-                              </span>
-                            </button>
-
-                            <div
-                              className={`grid transition-all duration-200 ease-out ${
-                                isOpen
-                                  ? "grid-rows-[1fr] mt-1"
-                                  : "grid-rows-[0fr]"
-                              }`}
-                            >
-                              <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-indigo-200/70 ml-3.5">
-                                {projectNotes.length === 0 ? (
-                                  <span className="text-[11px] text-slate-400 italic py-1">
-                                    Belum ada catatan
-                                  </span>
-                                ) : (
-                                  projectNotes.map((note) => (
-                                    <div
-                                      key={note.id}
-                                      title={note.title}
-                                      className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-indigo-50/50 text-xs text-slate-600"
-                                    >
-                                      <span className="size-1.5 rounded-full bg-indigo-400 shrink-0" />
-                                      <span className="truncate">
-                                        {note.title}
-                                      </span>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* FOLDER 2: AREA (PARA) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_para_area")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700">
-                      <ChevronRight
-                        className={`size-3.5 text-emerald-400 transition-transform duration-200 ${
-                          openFolders["group_para_area"] ? "rotate-90" : ""
-                        }`}
-                      />
-                      Area
-                    </span>
-                    <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
-                      {notes.filter((n) => n.paraCategory === "area").length}
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_para_area"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-emerald-100 ml-2">
-                      {areaFolders.map((area) => {
-                        const areaNotes = notes.filter(
-                          (n) =>
-                            n.paraCategory === "area" && n.targetId === area.id,
-                        );
-                        const folderKey = `para_folder_${area.id}`;
-                        const isOpen = !!openFolders[folderKey];
-
-                        return (
-                          <div key={area.id} className="flex flex-col">
-                            <button
-                              onClick={() => toggleFolder(folderKey)}
-                              className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                            >
-                              <span className="flex items-center gap-2 min-w-0">
-                                {isOpen ? (
-                                  <FolderOpen className="size-4 text-emerald-600 shrink-0" />
-                                ) : (
-                                  <Folder className="size-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                                )}
-                                <span
-                                  title={area.name}
-                                  className="text-xs font-medium text-slate-700 truncate"
-                                >
-                                  {area.name}
-                                </span>
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-400 ml-2 shrink-0">
-                                {areaNotes.length}
-                              </span>
-                            </button>
-
-                            <div
-                              className={`grid transition-all duration-200 ease-out ${
-                                isOpen
-                                  ? "grid-rows-[1fr] mt-1"
-                                  : "grid-rows-[0fr]"
-                              }`}
-                            >
-                              <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-emerald-200/70 ml-3.5">
-                                {areaNotes.length === 0 ? (
-                                  <span className="text-[11px] text-slate-400 italic py-1">
-                                    Belum ada catatan
-                                  </span>
-                                ) : (
-                                  areaNotes.map((note) => (
-                                    <div
-                                      key={note.id}
-                                      title={note.title}
-                                      className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-emerald-50/50 text-xs text-slate-600"
-                                    >
-                                      <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                      <span className="truncate">
-                                        {note.title}
-                                      </span>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* FOLDER 3: REFERENSI (PARA) */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col">
-                  <button
-                    onClick={() => toggleFolder("group_para_reference")}
-                    className="flex items-center justify-between w-full text-left py-1 px-1 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700">
-                      <ChevronRight
-                        className={`size-3.5 text-amber-400 transition-transform duration-200 ${
-                          openFolders["group_para_reference"] ? "rotate-90" : ""
-                        }`}
-                      />
-                      Referensi
-                    </span>
-                    <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                      {
-                        notes.filter((n) => n.paraCategory === "reference")
-                          .length
-                      }
-                    </span>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-200 ease-out ${
-                      openFolders["group_para_reference"]
-                        ? "grid-rows-[1fr] mt-2"
-                        : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="overflow-hidden flex flex-col gap-1.5 pl-2 border-l-2 border-amber-100 ml-2">
-                      {referenceFolders.map((refFolder) => {
-                        const refNotes = notes.filter(
-                          (n) =>
-                            n.paraCategory === "reference" &&
-                            n.targetId === refFolder.id,
-                        );
-                        const folderKey = `para_folder_${refFolder.id}`;
-                        const isOpen = !!openFolders[folderKey];
-
-                        return (
-                          <div key={refFolder.id} className="flex flex-col">
-                            <button
-                              onClick={() => toggleFolder(folderKey)}
-                              className="flex items-center justify-between w-full py-1.5 px-2 rounded-xl hover:bg-slate-50 text-left transition-colors group"
-                            >
-                              <span className="flex items-center gap-2 min-w-0">
-                                {isOpen ? (
-                                  <FolderOpen className="size-4 text-amber-600 shrink-0" />
-                                ) : (
-                                  <Folder className="size-4 text-slate-400 group-hover:text-amber-600 shrink-0" />
-                                )}
-                                <span
-                                  title={refFolder.name}
-                                  className="text-xs font-medium text-slate-700 truncate"
-                                >
-                                  {refFolder.name}
-                                </span>
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-400 ml-2 shrink-0">
-                                {refNotes.length}
-                              </span>
-                            </button>
-
-                            <div
-                              className={`grid transition-all duration-200 ease-out ${
-                                isOpen
-                                  ? "grid-rows-[1fr] mt-1"
-                                  : "grid-rows-[0fr]"
-                              }`}
-                            >
-                              <div className="overflow-hidden flex flex-col gap-1 pl-3 border-l border-amber-200/70 ml-3.5">
-                                {refNotes.length === 0 ? (
-                                  <span className="text-[11px] text-slate-400 italic py-1">
-                                    Belum ada catatan
-                                  </span>
-                                ) : (
-                                  refNotes.map((note) => (
-                                    <div
-                                      key={note.id}
-                                      title={note.title}
-                                      className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-amber-50/50 text-xs text-slate-600"
-                                    >
-                                      <span className="size-1.5 rounded-full bg-amber-400 shrink-0" />
-                                      <span className="truncate">
-                                        {note.title}
-                                      </span>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <InboxStorageExplorer
+          projects={projects}
+          paraFolders={paraFolders}
+          tasks={tasks}
+          calendarItems={calendarItems}
+          waitingForItems={waitingForItems}
+          notes={notes}
+          storageTab={storageTab}
+          onChangeTab={setStorageTab}
+          openFolders={openFolders}
+          onToggleFolder={toggleFolder}
+        />
       </div>
 
-      {/* PENGAMAN LAPIS 2: TOAST UNDO MAKRO */}
+      {/* TOAST UNDO MAKRO */}
       {undoSnapshot && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5">
           <span className="text-sm font-medium">{undoSnapshot.message}</span>
           <button
+            type="button"
             onClick={handleUndo}
             className="flex items-center gap-1.5 text-blue-300 hover:text-blue-100 text-xs font-bold uppercase tracking-wider bg-slate-700/80 px-3 py-1.5 rounded-lg transition-colors"
           >
             <Undo2 className="size-3.5" /> Batal (Undo)
           </button>
           <button
+            type="button"
             onClick={() => setUndoSnapshot(null)}
             className="text-slate-400 hover:text-white transition-colors"
           >
